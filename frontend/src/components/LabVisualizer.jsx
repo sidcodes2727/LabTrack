@@ -1,40 +1,59 @@
 import { motion } from 'framer-motion';
 
-const statusColors = {
-  working: 'text-emerald-600 border-emerald-500',
-  faulty: 'text-red-600 border-red-500',
-  maintenance: 'text-amber-600 border-amber-500'
+const statusStyles = {
+  working: {
+    screen: 'border-emerald-500 bg-emerald-50',
+    stand: 'bg-emerald-600',
+    base: 'bg-emerald-300/70',
+    text: 'text-emerald-700',
+    mark: null
+  },
+  faulty: {
+    screen: 'border-red-500 bg-red-50',
+    stand: 'bg-red-600',
+    base: 'bg-red-300/70',
+    text: 'text-red-700',
+    mark: '!'
+  },
+  maintenance: {
+    screen: 'border-amber-500 bg-amber-50',
+    stand: 'bg-amber-600',
+    base: 'bg-amber-300/70',
+    text: 'text-amber-700',
+    mark: '⚙'
+  }
 };
 
 function PcNode({ pc, onSelect, selectedId, label }) {
+  const tone = statusStyles[pc.status] || statusStyles.working;
+  const isSelected = selectedId === pc.id;
+
   return (
     <motion.button
-      whileHover={{ y: -3, scale: 1.03 }}
+      whileHover={{ y: -2, scale: 1.03 }}
+      transition={{ duration: 0.08, ease: 'linear' }}
       onClick={() => onSelect(pc)}
-      title={pc.system_id}
-      className="group relative flex h-16 w-14 flex-col items-center justify-start"
+      className={[
+        'group relative flex h-[62px] w-[46px] flex-col items-center justify-start rounded-md p-1 transition duration-75 hover:bg-[#9d2235]/6',
+        isSelected ? 'bg-[#9d2235]/12 ring-2 ring-[#9d2235]/30 shadow-[0_0_0_2px_rgba(157,34,53,0.12)]' : ''
+      ].join(' ')}
     >
       <div
-        className={`relative h-9 w-11 rounded-md border-2 bg-white shadow-sm transition ${
-          selectedId === pc.id ? 'border-[#9d2235] ring-2 ring-[#9d2235]/25' : statusColors[pc.status]
-        }`}
+        className={[
+          'relative h-[26px] w-[34px] rounded-[5px] border-2 transition',
+          tone.screen,
+          isSelected ? 'border-[#9d2235] ring-2 ring-[#9d2235]/20' : ''
+        ].join(' ')}
       >
-        <div className="mx-auto mt-1.5 h-1.5 w-6 rounded-sm bg-slate-900" />
-        <div className="mx-auto mt-0.5 h-1 w-3 rounded-sm bg-slate-500" />
-        <span className="absolute inset-x-0 bottom-0.5 text-center font-mono text-[9px] text-slate-600">{label}</span>
+        <div className="absolute inset-x-0 top-0 h-2 rounded-t-[3px] bg-white/30" />
+        {tone.mark ? <span className="absolute inset-0 grid place-items-center text-[11px] font-bold text-current">{tone.mark}</span> : null}
       </div>
 
-      <div
-        className={`mt-1 h-5 w-7 rounded-t-[10px] rounded-b-[8px] border-2 bg-[#f2e7e8] ${
-          selectedId === pc.id ? 'border-[#9d2235]' : statusColors[pc.status]
-        }`}
-      />
+      <div className={['mt-0.5 h-[4px] w-[10px] rounded-b-[3px]', tone.stand].join(' ')} />
+      <div className={['mt-[2px] h-[3px] w-[18px] rounded-[2px]', tone.base].join(' ')} />
 
-      <div
-        className={`absolute -right-1 top-0 h-3.5 w-3.5 rounded-full border-2 bg-white ${
-          selectedId === pc.id ? 'border-[#9d2235]' : statusColors[pc.status]
-        }`}
-      />
+      <span className={['mt-[2px] text-[9px] font-semibold tracking-tight', tone.text, isSelected ? 'font-bold' : ''].join(' ')}>{label}</span>
+
     </motion.button>
   );
 }

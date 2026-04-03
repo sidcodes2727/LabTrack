@@ -117,15 +117,58 @@ export default function StudentPage({ session, onLogout }) {
       return <p className="text-sm text-gray-500">Click any node in the map to inspect asset details.</p>;
     }
 
+    const statusTone = {
+      working: 'bg-emerald-100 text-emerald-700',
+      faulty: 'bg-red-100 text-red-700',
+      maintenance: 'bg-amber-100 text-amber-700'
+    };
+
     return (
-      <div className="space-y-2 text-sm">
-        <p><span className="font-medium">System ID:</span> <span className="font-mono">{selectedAsset.system_id}</span></p>
-        <p><span className="font-medium">Original ID:</span> <span className="font-mono text-xs">{selectedAsset.original_id}</span></p>
-        <p><span className="font-medium">CPU/RAM:</span> {selectedAsset.cpu} / {selectedAsset.ram}</p>
-        <p><span className="font-medium">Purchase:</span> {selectedAsset.purchase_date}</p>
-        <p><span className="font-medium">Last Maintenance:</span> {selectedAsset.last_maintenance}</p>
-        <button onClick={() => setModalOpen(true)} className="mt-2 rounded-xl bg-accent px-4 py-2 text-white">
-          Report Issue
+      <div className="space-y-4 text-sm">
+        <div className="rounded-2xl border border-[#9d2235]/10 bg-[#f8f3f4] p-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e6ebea] text-lg">🖥️</div>
+            <div className="min-w-0">
+              <p className="truncate font-mono text-[22px] font-semibold leading-none tracking-tight text-[#131018]">{selectedAsset.system_id}</p>
+              <span className={`mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${statusTone[selectedAsset.status] || 'bg-slate-100 text-slate-700'}`}>
+                {selectedAsset.status}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-[#9d2235]/10 bg-white">
+          <div className="flex items-center justify-between border-b border-[#9d2235]/8 px-3 py-2.5">
+            <span className="text-[11px] uppercase tracking-[0.08em] text-gray-500">System ID</span>
+            <span className="font-mono text-sm text-[#121019]">{selectedAsset.system_id}</span>
+          </div>
+          <div className="flex items-center justify-between border-b border-[#9d2235]/8 px-3 py-2.5">
+            <span className="text-[11px] uppercase tracking-[0.08em] text-gray-500">Original ID</span>
+            <span className="max-w-[140px] truncate font-mono text-xs text-[#121019]">{selectedAsset.original_id || '-'}</span>
+          </div>
+          <div className="flex items-center justify-between border-b border-[#9d2235]/8 px-3 py-2.5">
+            <span className="text-[11px] uppercase tracking-[0.08em] text-gray-500">CPU</span>
+            <span className="text-sm font-medium text-[#121019]">{selectedAsset.cpu || '-'}</span>
+          </div>
+          <div className="flex items-center justify-between border-b border-[#9d2235]/8 px-3 py-2.5">
+            <span className="text-[11px] uppercase tracking-[0.08em] text-gray-500">RAM</span>
+            <span className="text-sm font-medium text-[#121019]">{selectedAsset.ram || '-'}</span>
+          </div>
+          <div className="flex items-center justify-between border-b border-[#9d2235]/8 px-3 py-2.5">
+            <span className="text-[11px] uppercase tracking-[0.08em] text-gray-500">Purchase Date</span>
+            <span className="font-mono text-sm text-[#121019]">{selectedAsset.purchase_date || '-'}</span>
+          </div>
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <span className="text-[11px] uppercase tracking-[0.08em] text-gray-500">Last Maintenance</span>
+            <span className="font-mono text-sm text-[#121019]">{selectedAsset.last_maintenance || '-'}</span>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setModalOpen(true)}
+          className="w-full rounded-2xl bg-accent px-4 py-3 font-semibold text-white shadow-[0_8px_20px_rgba(157,34,53,0.25)] transition hover:brightness-95"
+        >
+          Report an Issue
         </button>
       </div>
     );
@@ -229,7 +272,7 @@ export default function StudentPage({ session, onLogout }) {
 
             <div className="flex-1 overflow-y-auto p-4">
               <h3 className="mb-2 text-sm font-semibold">{panelTab === 'details' ? 'Selected Asset' : panelTab === 'timeline' ? 'Asset History' : 'Your Tickets'}</h3>
-              <p className="mb-3 font-mono text-[11px] text-gray-500">{selectedLabel}</p>
+              {panelTab !== 'details' && <p className="mb-3 font-mono text-[11px] text-gray-500">{selectedLabel}</p>}
               {panelContent}
             </div>
           </aside>
