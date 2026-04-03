@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { ShieldCheck, Lock, Mail, User } from 'lucide-react';
+import { ShieldCheck, Lock, Mail, User, Eye, EyeOff, Map, Bot, Ticket, BarChart3 } from 'lucide-react';
 import { api } from '../lib/api';
 
 export default function LoginPage({ onAuth }) {
@@ -13,6 +13,8 @@ export default function LoginPage({ onAuth }) {
     role: 'student'
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   const setDemoAccount = (role) => {
     setForm((prev) => ({
@@ -100,7 +102,7 @@ export default function LoginPage({ onAuth }) {
               </div>
               <div className="grid grid-cols-7 gap-1.5">
                 {Array.from({ length: 28 }).map((_, i) => {
-                  const marker = i === 1 || i === 16 ? 'bg-red-400/70' : i === 6 || i === 23 ? 'bg-amber-300/70' : 'bg-white/30';
+                  const marker = i === 1 || i === 16 ? 'bg-red-400/70' : i === 6 || i === 23 ? 'bg-amber-300/70' : i === 21 ? 'bg-white/90 ring-2 ring-white/40' : 'bg-white/30';
                   return <div key={i} className={`aspect-square rounded-[4px] ${marker}`} />;
                 })}
               </div>
@@ -112,10 +114,10 @@ export default function LoginPage({ onAuth }) {
             </div>
 
             <ul className="relative z-10 space-y-2 text-sm text-white/85">
-              <li>Interactive visual lab maps</li>
-              <li>Gemini AI complaint triage</li>
-              <li>Kanban complaint board</li>
-              <li>Admin analytics dashboard</li>
+              <li className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded bg-white/15"><Map size={12} /></span>Interactive visual lab maps</li>
+              <li className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded bg-white/15"><Bot size={12} /></span>Gemini AI complaint triage</li>
+              <li className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded bg-white/15"><Ticket size={12} /></span>Kanban complaint board</li>
+              <li className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded bg-white/15"><BarChart3 size={12} /></span>Admin analytics dashboard</li>
             </ul>
           </div>
 
@@ -182,13 +184,28 @@ export default function LoginPage({ onAuth }) {
                   name="password"
                   value={form.password}
                   onChange={handleChange}
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
-                  className="w-full rounded-xl border border-gray-200 py-2.5 pl-9 pr-3"
+                  className="w-full rounded-xl border border-gray-200 py-2.5 pl-9 pr-9"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((p) => !p)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-accent"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </label>
+
+            <div className="-mt-1 flex items-center justify-between text-xs text-gray-500">
+              <label className="inline-flex items-center gap-1.5">
+                <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="accent-[#9d2235]" />
+                Remember me
+              </label>
+              <button type="button" className="text-accent hover:opacity-80">Forgot password?</button>
+            </div>
 
             <button
               className="w-full rounded-xl bg-accent px-4 py-3 font-medium text-white transition hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60"
