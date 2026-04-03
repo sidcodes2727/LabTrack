@@ -76,7 +76,7 @@ export default function AdminPage({ session, onLogout }) {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#f6f2f0] p-6">
+    <div className="relative min-h-screen overflow-hidden bg-[#f5f0eb]">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(157,34,53,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(157,34,53,0.045)_1px,transparent_1px)] bg-[size:38px_38px]" />
       <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-[#9d2235]/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 right-0 h-80 w-80 rounded-full bg-[#9d2235]/10 blur-3xl" />
@@ -84,23 +84,29 @@ export default function AdminPage({ session, onLogout }) {
       <motion.header
         initial={{ y: -14, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="relative z-10 mb-6 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-[#9d2235]/10 bg-white/80 p-4 shadow-glass backdrop-blur-md"
+        className="relative z-20 flex h-14 items-center justify-between border-b border-[#9d2235]/10 bg-white/95 px-5 shadow-sm"
       >
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Lab <span className="text-accent">Track</span> Admin Control Center
-          </h1>
-          <p className="text-sm text-gray-600">{session.user.name}</p>
+        <div className="flex items-center gap-3">
+          <div className="text-lg font-semibold tracking-tight">Lab <span className="text-accent">Track</span></div>
+          <span className="h-5 w-px bg-[#9d2235]/15" />
+          <span className="text-sm text-gray-500">Admin Control Center</span>
         </div>
         <div className="flex items-center gap-2">
           <NotificationBell />
+          <div className="hidden items-center gap-2 rounded-lg border border-[#9d2235]/15 bg-white px-2 py-1 text-xs text-gray-600 md:flex">
+            <span className="grid h-6 w-6 place-items-center rounded-full bg-[#9d2235]/10 font-semibold text-accent">
+              {(session.user.name || 'A').charAt(0).toUpperCase()}
+            </span>
+            {session.user.name}
+          </div>
           <button className="flex items-center gap-2 rounded-xl border border-[#9d2235]/20 bg-white px-3 py-2 hover:border-[#9d2235]/40" onClick={onLogout}>
             <LogOut size={16} /> Logout
           </button>
         </div>
       </motion.header>
 
-      <section className="relative z-10 mb-6 grid gap-3 sm:grid-cols-3">
+      <div className="relative z-10 p-6">
+      <section className="mb-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-3xl border border-[#9d2235]/10 bg-white p-4 shadow-glass">
           <p className="text-xs uppercase tracking-wide text-gray-500">Total Assets</p>
           <p className="font-mono text-2xl">{dashboard.totals.assets || 0}</p>
@@ -115,11 +121,12 @@ export default function AdminPage({ session, onLogout }) {
         </div>
       </section>
 
-      <section className="relative z-10 mb-6">
+      <section className="mb-4">
         <DashboardCharts data={dashboard} />
       </section>
 
-      <section className="relative z-10 mb-6 rounded-3xl border border-[#9d2235]/10 bg-white/85 p-4 shadow-glass backdrop-blur-md">
+      <section className="mb-4 rounded-3xl border border-[#9d2235]/10 bg-white/90 p-4 shadow-glass backdrop-blur-md">
+        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">Export and Import</div>
         <div className="mb-3 grid gap-2 md:grid-cols-6">
           <input
             placeholder="Lab"
@@ -185,9 +192,10 @@ export default function AdminPage({ session, onLogout }) {
         </div>
       </section>
 
-      <section className="relative z-10">
+      <section>
         <KanbanBoard items={cards} onRefresh={load} />
       </section>
+      </div>
     </div>
   );
 }

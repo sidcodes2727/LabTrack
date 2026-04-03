@@ -3,955 +3,706 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LabTrack — Sign In</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<title>LabTrack — Student Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-  :root {
-    --crimson: #9B1D38;
-    --crimson-light: #C02444;
-    --crimson-dim: #7a1730;
-    --crimson-glow: rgba(155,29,56,0.25);
-    --cream: #F5F0EB;
-    --ink: #1A1015;
-    --ink-muted: #7A6570;
-    --white: #FDFAF7;
-    --border: rgba(26,16,21,0.1);
-  }
-
-  html, body {
-    height: 100%;
-    font-family: 'DM Sans', sans-serif;
-    background: var(--cream);
-    color: var(--ink);
-    overflow: hidden;
-  }
-
-  /* ─── BACKGROUND ─── */
-  .bg {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-  }
-
-  /* subtle grid */
-  .bg::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(155,29,56,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(155,29,56,0.04) 1px, transparent 1px);
-    background-size: 48px 48px;
-  }
-
-  /* radial glow blobs */
-  .blob {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(80px);
-    pointer-events: none;
-  }
-
-  .blob-1 {
-    width: 500px; height: 500px;
-    background: radial-gradient(circle, rgba(155,29,56,0.12) 0%, transparent 70%);
-    top: -100px; left: -100px;
-    animation: driftA 12s ease-in-out infinite alternate;
-  }
-
-  .blob-2 {
-    width: 400px; height: 400px;
-    background: radial-gradient(circle, rgba(155,29,56,0.08) 0%, transparent 70%);
-    bottom: -80px; right: -80px;
-    animation: driftB 15s ease-in-out infinite alternate;
-  }
-
-  .blob-3 {
-    width: 300px; height: 300px;
-    background: radial-gradient(circle, rgba(212,169,74,0.06) 0%, transparent 70%);
-    top: 50%; right: 20%;
-    animation: driftC 10s ease-in-out infinite alternate;
-  }
-
-  @keyframes driftA {
-    from { transform: translate(0, 0); }
-    to   { transform: translate(60px, 40px); }
-  }
-  @keyframes driftB {
-    from { transform: translate(0, 0); }
-    to   { transform: translate(-40px, -60px); }
-  }
-  @keyframes driftC {
-    from { transform: translate(0, -50%); }
-    to   { transform: translate(-30px, calc(-50% + 30px)); }
-  }
-
-  /* noise overlay */
-  .bg::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.025'/%3E%3C/svg%3E");
-    pointer-events: none;
-  }
-
-  /* ─── FLOATING PC NODES (decoration) ─── */
-  .floating-nodes {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .f-node {
-    position: absolute;
-    width: 36px; height: 36px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.6rem;
-    font-weight: 600;
-    font-family: 'DM Sans', sans-serif;
-    opacity: 0;
-    animation: nodeFloat 6s ease-in-out infinite;
-  }
-
-  .fn-green { background: rgba(45,122,79,0.1); color: #2D7A4F; border: 1px solid rgba(45,122,79,0.2); }
-  .fn-red   { background: rgba(155,29,56,0.08); color: var(--crimson); border: 1px solid rgba(155,29,56,0.15); }
-  .fn-amber { background: rgba(192,122,26,0.1); color: #C07A1A; border: 1px solid rgba(192,122,26,0.2); }
-
-  @keyframes nodeFloat {
-    0%   { opacity: 0; transform: translateY(20px); }
-    20%  { opacity: 1; }
-    80%  { opacity: 1; }
-    100% { opacity: 0; transform: translateY(-20px); }
-  }
-
-  /* ─── WRAPPER ─── */
-  .wrapper {
-    position: relative;
-    z-index: 10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-  }
-
-  /* ─── TOP BRAND BAR ─── */
-  .brand-bar {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.1rem 2.5rem;
-    background: rgba(245,240,235,0.7);
-    backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(155,29,56,0.08);
-  }
-
-  .brand-logo {
-    font-family: 'Syne', sans-serif;
-    font-weight: 800;
-    font-size: 1.3rem;
-    color: var(--ink);
-    letter-spacing: -0.03em;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    text-decoration: none;
-  }
-
-  .logo-icon {
-    width: 26px; height: 26px;
-    background: var(--crimson);
-    color: white;
-    border-radius: 7px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-  }
-
-  .brand-logo span { color: var(--crimson); }
-
-  .brand-badge {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.72rem;
-    color: var(--ink-muted);
-    background: rgba(26,16,21,0.05);
-    border: 1px solid var(--border);
-    border-radius: 100px;
-    padding: 0.3rem 0.85rem;
-  }
-
-  .status-dot {
-    width: 6px; height: 6px;
-    background: #2D7A4F;
-    border-radius: 50%;
-    animation: statusPulse 2s ease-in-out infinite;
-  }
-
-  @keyframes statusPulse {
-    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(45,122,79,0.4); }
-    50%       { opacity: 0.7; box-shadow: 0 0 0 4px rgba(45,122,79,0); }
-  }
-
-  /* ─── CARD ─── */
-  .card {
-    width: 100%;
-    max-width: 860px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    border-radius: 24px;
-    overflow: hidden;
-    box-shadow:
-      0 32px 80px rgba(26,16,21,0.14),
-      0 8px 24px rgba(26,16,21,0.08),
-      0 0 0 1px rgba(26,16,21,0.05);
-    opacity: 0;
-    transform: translateY(28px);
-    animation: cardIn 0.7s 0.2s cubic-bezier(0.16,1,0.3,1) forwards;
-  }
-
-  @keyframes cardIn {
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  /* ─── LEFT PANEL ─── */
-  .left-panel {
-    background: var(--crimson);
-    padding: 3rem 2.5rem;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    min-height: 500px;
-  }
-
-  /* geometric decoration */
-  .left-panel::before {
-    content: '';
-    position: absolute;
-    top: -60px; right: -60px;
-    width: 220px; height: 220px;
-    border-radius: 50%;
-    border: 40px solid rgba(255,255,255,0.06);
-  }
-
-  .left-panel::after {
-    content: '';
-    position: absolute;
-    bottom: -80px; left: -40px;
-    width: 280px; height: 280px;
-    border-radius: 50%;
-    border: 50px solid rgba(255,255,255,0.04);
-  }
-
-  .panel-top { position: relative; z-index: 2; }
-
-  .panel-logo {
-    font-family: 'Syne', sans-serif;
-    font-weight: 800;
-    font-size: 2rem;
-    color: white;
-    letter-spacing: -0.04em;
-    margin-bottom: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .panel-logo-icon {
-    width: 32px; height: 32px;
-    background: rgba(255,255,255,0.15);
-    border-radius: 9px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.9rem;
-  }
-
-  .panel-tagline {
-    font-size: 0.85rem;
-    color: rgba(255,255,255,0.65);
-    line-height: 1.65;
-    font-weight: 300;
-    max-width: 240px;
-    margin-bottom: 2.5rem;
-  }
-
-  /* mini lab grid in left panel */
-  .mini-lab {
-    position: relative;
-    z-index: 2;
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 14px;
-    padding: 1.25rem;
-    margin-bottom: 2rem;
-  }
-
-  .mini-lab-label {
-    font-size: 0.68rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: rgba(255,255,255,0.45);
-    margin-bottom: 0.9rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .mini-lab-label span {
-    background: rgba(45,122,79,0.25);
-    color: #7FFFC4;
-    border-radius: 100px;
-    padding: 0.15rem 0.6rem;
-    font-size: 0.62rem;
-  }
-
-  .mini-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 5px;
-  }
-
-  .mn {
-    aspect-ratio: 1;
-    border-radius: 5px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.45rem;
-    font-weight: 700;
-    color: white;
-    cursor: default;
-  }
-
-  .mn-g { background: rgba(45,122,79,0.5); }
-  .mn-r { background: rgba(255,255,255,0.2); }
-  .mn-a { background: rgba(192,122,26,0.5); }
-  .mn-e { background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.1); }
-  .mn-s { background: rgba(255,255,255,0.9); color: var(--crimson) !important; box-shadow: 0 0 0 2px rgba(255,255,255,0.5); animation: selectedPulse 2s ease-in-out infinite; }
-
-  @keyframes selectedPulse {
-    0%, 100% { box-shadow: 0 0 0 2px rgba(255,255,255,0.5); }
-    50%       { box-shadow: 0 0 0 4px rgba(255,255,255,0.2); }
-  }
-
-  .mini-legend {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 0.75rem;
-    flex-wrap: wrap;
-  }
-
-  .ml-item {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.63rem;
-    color: rgba(255,255,255,0.45);
-  }
-
-  .ml-dot { width: 6px; height: 6px; border-radius: 50%; }
-  .ml-g { background: rgba(45,122,79,0.8); }
-  .ml-r { background: rgba(255,255,255,0.5); }
-  .ml-a { background: rgba(192,122,26,0.8); }
-
-  .panel-bottom {
-    position: relative;
-    z-index: 2;
-  }
-
-  .panel-features {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-  }
-
-  .pf-item {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    font-size: 0.78rem;
-    color: rgba(255,255,255,0.65);
-    font-weight: 300;
-  }
-
-  .pf-icon {
-    width: 22px; height: 22px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 5px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-    flex-shrink: 0;
-  }
-
-  /* ─── RIGHT PANEL ─── */
-  .right-panel {
-    background: var(--white);
-    padding: 3rem 2.75rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  .form-eyebrow {
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--crimson);
-    margin-bottom: 0.6rem;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .form-eyebrow::before {
-    content: '';
-    width: 16px; height: 2px;
-    background: var(--crimson);
-    border-radius: 2px;
-  }
-
-  .form-title {
-    font-family: 'Syne', sans-serif;
-    font-weight: 800;
-    font-size: 1.9rem;
-    letter-spacing: -0.035em;
-    color: var(--ink);
-    line-height: 1.1;
-    margin-bottom: 0.5rem;
-  }
-
-  .form-sub {
-    font-size: 0.85rem;
-    color: var(--ink-muted);
-    margin-bottom: 2rem;
-    font-weight: 300;
-    line-height: 1.55;
-  }
-
-  /* role tabs */
-  .role-tabs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
-    margin-bottom: 1.75rem;
-    background: rgba(26,16,21,0.05);
-    border-radius: 12px;
-    padding: 4px;
-  }
-
-  .role-tab {
-    padding: 0.6rem;
-    border-radius: 9px;
-    border: none;
-    background: transparent;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.82rem;
-    font-weight: 500;
-    color: var(--ink-muted);
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-  }
-
-  .role-tab.active {
-    background: var(--white);
-    color: var(--ink);
-    box-shadow: 0 2px 8px rgba(26,16,21,0.1);
-  }
-
-  .role-tab.active.tab-admin {
-    color: var(--crimson);
-  }
-
-  /* form fields */
-  .field {
-    margin-bottom: 1rem;
-  }
-
-  .field-label {
-    font-size: 0.78rem;
-    font-weight: 500;
-    color: var(--ink);
-    margin-bottom: 0.4rem;
-    display: block;
-    letter-spacing: 0.01em;
-  }
-
-  .field-wrap {
-    position: relative;
-  }
-
-  .field-icon {
-    position: absolute;
-    left: 0.9rem;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 0.85rem;
-    color: var(--ink-muted);
-    pointer-events: none;
-  }
-
-  .field-input {
-    width: 100%;
-    padding: 0.75rem 0.9rem 0.75rem 2.6rem;
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
-    background: rgba(26,16,21,0.02);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.875rem;
-    color: var(--ink);
-    outline: none;
-    transition: all 0.2s;
-  }
-
-  .field-input::placeholder { color: rgba(92,74,82,0.5); }
-
-  .field-input:focus {
-    border-color: var(--crimson);
-    background: white;
-    box-shadow: 0 0 0 3px rgba(155,29,56,0.08);
-  }
-
-  .pass-toggle {
-    position: absolute;
-    right: 0.9rem;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 0.8rem;
-    color: var(--ink-muted);
-    padding: 0;
-    transition: color 0.2s;
-  }
-
-  .pass-toggle:hover { color: var(--crimson); }
-
-  .field-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 0.4rem;
-  }
-
-  .remember-wrap {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    cursor: pointer;
-  }
-
-  .remember-wrap input {
-    width: 14px; height: 14px;
-    accent-color: var(--crimson);
-    cursor: pointer;
-  }
-
-  .remember-wrap label {
-    font-size: 0.75rem;
-    color: var(--ink-muted);
-    cursor: pointer;
-  }
-
-  .forgot-link {
-    font-size: 0.75rem;
-    color: var(--crimson);
-    text-decoration: none;
-    transition: opacity 0.2s;
-  }
-
-  .forgot-link:hover { opacity: 0.7; }
-
-  /* login button */
-  .btn-login {
-    width: 100%;
-    padding: 0.85rem;
-    margin-top: 0.75rem;
-    background: var(--crimson);
-    border: none;
-    border-radius: 11px;
-    color: white;
-    font-family: 'Syne', sans-serif;
-    font-size: 0.95rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    cursor: pointer;
-    transition: all 0.25s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(155,29,56,0.3);
-  }
-
-  .btn-login::before {
-    content: '';
-    position: absolute;
-    top: 0; left: -100%;
-    width: 100%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-    transition: left 0.5s;
-  }
-
-  .btn-login:hover { background: var(--crimson-dim); transform: translateY(-1px); box-shadow: 0 8px 28px rgba(155,29,56,0.35); }
-  .btn-login:hover::before { left: 100%; }
-  .btn-login:active { transform: translateY(0); }
-
-  .btn-arrow { transition: transform 0.2s; }
-  .btn-login:hover .btn-arrow { transform: translateX(3px); }
-
-  /* divider */
-  .divider {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 1.25rem 0;
-  }
-
-  .divider-line {
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-
-  .divider-text {
-    font-size: 0.72rem;
-    color: var(--ink-muted);
-    white-space: nowrap;
-  }
-
-  /* demo buttons */
-  .demo-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
-    margin-bottom: 1.25rem;
-  }
-
-  .btn-demo {
-    padding: 0.6rem 0.75rem;
-    border: 1.5px solid var(--border);
-    border-radius: 9px;
-    background: white;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.78rem;
-    font-weight: 500;
-    color: var(--ink-muted);
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-  }
-
-  .btn-demo:hover { border-color: var(--crimson); color: var(--crimson); background: rgba(155,29,56,0.03); }
-
-  /* signup link */
-  .signup-row {
-    text-align: center;
-    margin-top: 1rem;
-  }
-
-  .signup-text {
-    font-size: 0.8rem;
-    color: var(--ink-muted);
-  }
-
-  .signup-link {
-    color: var(--crimson);
-    text-decoration: none;
-    font-weight: 500;
-    transition: opacity 0.2s;
-  }
-
-  .signup-link:hover { opacity: 0.7; }
-
-  /* ─── SUCCESS STATE ─── */
-  .success-overlay {
-    position: absolute;
-    inset: 0;
-    background: white;
-    border-radius: 24px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.4s;
-    z-index: 10;
-  }
-
-  .success-overlay.show { opacity: 1; pointer-events: all; }
-
-  .success-icon {
-    width: 64px; height: 64px;
-    background: rgba(45,122,79,0.1);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.8rem;
-  }
-
-  .success-title {
-    font-family: 'Syne', sans-serif;
-    font-weight: 700;
-    font-size: 1.2rem;
-    color: var(--ink);
-  }
-
-  .success-sub { font-size: 0.85rem; color: var(--ink-muted); }
-
-  /* ─── FOOTER NOTE ─── */
-  .footer-note {
-    margin-top: 1.75rem;
-    text-align: center;
-    font-size: 0.7rem;
-    color: var(--ink-muted);
-    opacity: 0.6;
-  }
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --cr:#9B1D38;--cr-l:#C02444;--cr-d:#7a1730;--cr-gl:rgba(155,29,56,0.12);
+  --cream:#F5F0EB;--cream-d:#EDE6DC;--ink:#1A1015;--ink-m:#6B5560;--ink-l:#9A8490;
+  --white:#FDFAF7;--surface:#F0EBE5;
+  --green:#2D7A4F;--amber:#C07A1A;--border:rgba(26,16,21,0.09);
+  --s1:0 1px 3px rgba(26,16,21,0.06),0 1px 2px rgba(26,16,21,0.04);
+  --s2:0 4px 16px rgba(26,16,21,0.08),0 2px 4px rgba(26,16,21,0.05);
+  --s3:0 12px 40px rgba(26,16,21,0.12),0 4px 12px rgba(26,16,21,0.06);
+}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);overflow:hidden;}
+
+/* ── TOPBAR ── */
+.topbar{
+  height:52px;background:var(--white);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 1.5rem;position:relative;z-index:50;
+  box-shadow:var(--s1);
+}
+.tb-left{display:flex;align-items:center;gap:0.75rem;}
+.tb-logo{
+  font-family:'Syne',sans-serif;font-weight:800;font-size:1.05rem;
+  letter-spacing:-0.03em;color:var(--ink);display:flex;align-items:center;gap:6px;
+}
+.tb-logo-icon{width:24px;height:24px;background:var(--cr);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;}
+.tb-logo span{color:var(--cr);}
+.tb-sep{width:1px;height:20px;background:var(--border);}
+.tb-page{font-size:0.82rem;color:var(--ink-m);font-weight:400;}
+.tb-right{display:flex;align-items:center;gap:0.6rem;}
+.tb-user{display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--ink-m);}
+.avatar{width:28px;height:28px;background:var(--cr-gl);border:1.5px solid rgba(155,29,56,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;color:var(--cr);font-family:'Syne',sans-serif;}
+.notif-btn{
+  position:relative;width:32px;height:32px;border-radius:8px;border:1px solid var(--border);
+  background:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:0.85rem;transition:all 0.2s;
+}
+.notif-btn:hover{background:var(--surface);border-color:rgba(26,16,21,0.15);}
+.notif-dot{position:absolute;top:5px;right:5px;width:6px;height:6px;background:var(--cr);border-radius:50%;border:1.5px solid var(--white);}
+.logout-btn{
+  display:flex;align-items:center;gap:0.35rem;padding:0.35rem 0.75rem;
+  border:1px solid var(--border);border-radius:8px;background:var(--white);
+  font-family:'DM Sans',sans-serif;font-size:0.78rem;color:var(--ink-m);
+  cursor:pointer;transition:all 0.2s;
+}
+.logout-btn:hover{border-color:var(--cr);color:var(--cr);}
+
+/* ── MAIN LAYOUT ── */
+.main{display:grid;grid-template-columns:1fr 300px;height:calc(100vh - 52px);overflow:hidden;}
+
+/* ── LEFT COLUMN ── */
+.left{display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border);}
+
+/* lab tabs */
+.lab-tabs{
+  display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--white);
+  padding:0 1.25rem;flex-shrink:0;
+}
+.lab-tab{
+  display:flex;flex-direction:column;gap:2px;padding:0.75rem 1.25rem;cursor:pointer;
+  border-bottom:2.5px solid transparent;transition:all 0.2s;position:relative;
+}
+.lab-tab:hover{background:var(--surface);}
+.lab-tab.active{border-bottom-color:var(--cr);}
+.lt-name{font-family:'Syne',sans-serif;font-weight:700;font-size:0.78rem;color:var(--ink-m);letter-spacing:0.04em;}
+.lab-tab.active .lt-name{color:var(--cr);}
+.lt-meta{display:flex;align-items:center;gap:0.5rem;}
+.lt-count{font-size:0.72rem;color:var(--ink-l);}
+.lt-faulty{font-size:0.72rem;font-weight:500;}
+.lt-faulty.has-fault{color:var(--cr);}
+.lt-faulty.no-fault{color:var(--green);}
+.lt-bar{height:3px;border-radius:2px;background:var(--surface);margin-top:4px;overflow:hidden;min-width:60px;}
+.lt-bar-fill{height:100%;border-radius:2px;background:var(--cr);transition:width 0.4s;}
+
+/* lab map area */
+.map-area{flex:1;overflow-y:auto;padding:1.25rem;}
+.map-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;}
+.map-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;color:var(--ink);}
+.map-meta{font-size:0.75rem;color:var(--ink-l);}
+.search-wrap{position:relative;}
+.search-icon{position:absolute;left:0.65rem;top:50%;transform:translateY(-50%);font-size:0.8rem;color:var(--ink-l);pointer-events:none;}
+.search-input{
+  padding:0.45rem 0.75rem 0.45rem 2rem;border:1px solid var(--border);border-radius:8px;
+  background:var(--white);font-family:'DM Sans',sans-serif;font-size:0.78rem;color:var(--ink);
+  outline:none;width:200px;transition:all 0.2s;
+}
+.search-input:focus{border-color:var(--cr);box-shadow:0 0 0 3px rgba(155,29,56,0.08);width:220px;}
+.search-input::placeholder{color:var(--ink-l);}
+
+/* legend */
+.legend{display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;}
+.leg-item{display:flex;align-items:center;gap:0.35rem;font-size:0.72rem;color:var(--ink-m);}
+.leg-dot{width:8px;height:8px;border-radius:50%;}
+.ld-g{background:var(--green);}
+.ld-r{background:var(--cr);}
+.ld-a{background:var(--amber);}
+
+/* lab map */
+.lab-map-card{
+  background:var(--white);border-radius:14px;border:1px solid var(--border);
+  padding:1.25rem;box-shadow:var(--s1);
+}
+.wing-label{
+  font-size:0.65rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;
+  color:var(--ink-l);margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;
+}
+.wing-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.map-top-bar,.map-bottom-bar{
+  background:rgba(155,29,56,0.06);border:1px solid rgba(155,29,56,0.12);
+  border-radius:8px;padding:0.4rem;text-align:center;
+  font-size:0.68rem;color:var(--cr);font-weight:500;letter-spacing:0.05em;
+  margin-bottom:1rem;
+}
+.map-bottom-bar{margin-bottom:0;margin-top:1rem;}
+.wings-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:0.75rem;align-items:start;}
+.wing-col{display:flex;flex-direction:column;gap:0.4rem;}
+.wing-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+.open-lane{
+  display:flex;align-items:center;justify-content:center;
+  writing-mode:vertical-rl;font-size:0.65rem;color:var(--ink-l);
+  background:rgba(26,16,21,0.03);border:1px dashed rgba(26,16,21,0.1);
+  border-radius:8px;padding:0.5rem;min-height:160px;letter-spacing:0.1em;
+  font-weight:500;
+}
+
+/* PC Node */
+.pc-node{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  cursor:pointer;padding:5px 4px;border-radius:8px;
+  transition:all 0.15s;position:relative;
+}
+.pc-node:hover{background:rgba(155,29,56,0.06);transform:translateY(-2px);}
+.pc-node.selected{background:rgba(155,29,56,0.1);}
+.pc-screen{
+  width:34px;height:26px;border-radius:5px;border:2px solid;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.5rem;font-weight:700;font-family:'Syne',sans-serif;
+  position:relative;overflow:hidden;transition:all 0.15s;
+}
+.pc-screen::before{content:'';position:absolute;top:0;left:0;right:0;height:8px;background:rgba(255,255,255,0.15);}
+.pc-stand{width:10px;height:4px;border-radius:0 0 3px 3px;transition:background 0.15s;}
+.pc-base{width:18px;height:3px;border-radius:2px;transition:background 0.15s;}
+.pc-id{font-size:0.58rem;font-weight:600;font-family:'Syne',sans-serif;text-align:center;margin-top:1px;}
+
+/* status colors */
+.st-working .pc-screen{background:rgba(45,122,79,0.08);border-color:var(--green);}
+.st-working .pc-stand{background:var(--green);}
+.st-working .pc-base{background:rgba(45,122,79,0.4);}
+.st-working .pc-id{color:var(--green);}
+
+.st-faulty .pc-screen{background:rgba(155,29,56,0.1);border-color:var(--cr);}
+.st-faulty .pc-stand{background:var(--cr);}
+.st-faulty .pc-base{background:rgba(155,29,56,0.4);}
+.st-faulty .pc-id{color:var(--cr);}
+.st-faulty .pc-screen::after{content:'!';position:absolute;font-size:0.7rem;font-weight:800;color:var(--cr);}
+
+.st-maintenance .pc-screen{background:rgba(192,122,26,0.08);border-color:var(--amber);}
+.st-maintenance .pc-stand{background:var(--amber);}
+.st-maintenance .pc-base{background:rgba(192,122,26,0.4);}
+.st-maintenance .pc-id{color:var(--amber);}
+.st-maintenance .pc-screen::after{content:'⚙';position:absolute;font-size:0.6rem;color:var(--amber);}
+
+.pc-node.selected .pc-screen{box-shadow:0 0 0 2px var(--cr),0 0 0 4px rgba(155,29,56,0.15);}
+
+/* pulse for faulty */
+.st-faulty .pc-screen{animation:faultyPulse 2.5s ease-in-out infinite;}
+@keyframes faultyPulse{0%,100%{box-shadow:0 0 0 0 rgba(155,29,56,0);}50%{box-shadow:0 0 0 3px rgba(155,29,56,0.2);}}
+
+/* tooltip */
+.pc-tooltip{
+  position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+  background:var(--ink);color:var(--white);border-radius:7px;padding:0.4rem 0.6rem;
+  font-size:0.68rem;white-space:nowrap;pointer-events:none;opacity:0;
+  transition:opacity 0.15s;z-index:10;
+}
+.pc-tooltip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:var(--ink);}
+.pc-node:hover .pc-tooltip{opacity:1;}
+
+/* ── RIGHT COLUMN ── */
+.right{background:var(--white);display:flex;flex-direction:column;overflow:hidden;}
+
+.panel-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+.ptab{
+  flex:1;padding:0.75rem 0.5rem;font-size:0.75rem;font-weight:500;color:var(--ink-m);
+  cursor:pointer;text-align:center;border-bottom:2px solid transparent;
+  transition:all 0.2s;background:none;border-left:none;border-right:none;border-top:none;
+  font-family:'DM Sans',sans-serif;
+}
+.ptab:hover{color:var(--ink);background:var(--surface);}
+.ptab.active{color:var(--cr);border-bottom-color:var(--cr);}
+
+.panel-body{flex:1;overflow-y:auto;padding:1.25rem;}
+
+/* empty state */
+.empty-state{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:120px;text-align:center;gap:0.5rem;
+}
+.empty-icon{font-size:1.5rem;opacity:0.4;}
+.empty-text{font-size:0.8rem;color:var(--ink-l);}
+.empty-hint{font-size:0.72rem;color:var(--ink-l);opacity:0.7;}
+
+/* PC Detail */
+.pc-detail{animation:slideIn 0.25s ease;}
+@keyframes slideIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+.pc-detail-header{
+  display:flex;align-items:center;gap:0.75rem;padding-bottom:1rem;
+  border-bottom:1px solid var(--border);margin-bottom:1rem;
+}
+.pc-detail-icon{
+  width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;flex-shrink:0;
+}
+.pdi-working{background:rgba(45,122,79,0.1);}
+.pdi-faulty{background:rgba(155,29,56,0.1);}
+.pdi-maintenance{background:rgba(192,122,26,0.1);}
+
+.pc-detail-id{font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;color:var(--ink);}
+.pc-status-badge{
+  display:inline-flex;align-items:center;gap:0.3rem;font-size:0.68rem;font-weight:600;
+  padding:0.2rem 0.6rem;border-radius:100px;margin-top:2px;text-transform:uppercase;letter-spacing:0.04em;
+}
+.psb-working{background:rgba(45,122,79,0.1);color:var(--green);}
+.psb-faulty{background:rgba(155,29,56,0.1);color:var(--cr);}
+.psb-maintenance{background:rgba(192,122,26,0.1);color:var(--amber);}
+
+.spec-list{display:flex;flex-direction:column;gap:0;}
+.spec-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:0.55rem 0;border-bottom:1px solid rgba(26,16,21,0.05);font-size:0.78rem;
+}
+.spec-row:last-child{border-bottom:none;}
+.spec-key{color:var(--ink-l);font-weight:400;}
+.spec-val{color:var(--ink);font-weight:500;text-align:right;max-width:180px;word-break:break-all;font-size:0.72rem;}
+
+/* Report button */
+.report-btn{
+  width:100%;margin-top:1rem;padding:0.75rem;background:var(--cr);border:none;
+  border-radius:10px;color:white;font-family:'Syne',sans-serif;font-weight:700;
+  font-size:0.85rem;cursor:pointer;transition:all 0.2s;
+  display:flex;align-items:center;justify-content:center;gap:0.5rem;
+  box-shadow:0 4px 14px rgba(155,29,56,0.3);
+}
+.report-btn:hover{background:var(--cr-d);transform:translateY(-1px);box-shadow:0 6px 20px rgba(155,29,56,0.35);}
+
+/* complaint form */
+.complaint-form{margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem;animation:slideIn 0.2s ease;}
+.cf-label{font-size:0.73rem;font-weight:500;color:var(--ink);margin-bottom:0.35rem;display:block;}
+.cf-textarea{
+  width:100%;padding:0.65rem 0.75rem;border:1.5px solid var(--border);border-radius:8px;
+  font-family:'DM Sans',sans-serif;font-size:0.8rem;color:var(--ink);resize:none;
+  outline:none;transition:all 0.2s;background:rgba(26,16,21,0.02);
+}
+.cf-textarea:focus{border-color:var(--cr);box-shadow:0 0 0 3px rgba(155,29,56,0.08);}
+.cf-row{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.75rem;}
+.cf-submit{
+  padding:0.6rem;background:var(--cr);border:none;border-radius:8px;
+  color:white;font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:500;
+  cursor:pointer;transition:all 0.2s;
+}
+.cf-submit:hover{background:var(--cr-d);}
+.cf-cancel{
+  padding:0.6rem;background:transparent;border:1px solid var(--border);border-radius:8px;
+  color:var(--ink-m);font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:500;
+  cursor:pointer;transition:all 0.2s;
+}
+.cf-cancel:hover{border-color:var(--ink-m);}
+
+/* Timeline */
+.timeline{display:flex;flex-direction:column;gap:0;}
+.tl-item{
+  display:flex;gap:0.75rem;padding:0.75rem 0;
+  border-bottom:1px solid rgba(26,16,21,0.05);
+}
+.tl-item:last-child{border-bottom:none;}
+.tl-dot-col{display:flex;flex-direction:column;align-items:center;gap:0;}
+.tl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.tl-line{width:1px;flex:1;background:var(--border);min-height:16px;}
+.tl-type{font-size:0.73rem;font-weight:600;color:var(--ink);}
+.tl-desc{font-size:0.7rem;color:var(--ink-m);line-height:1.45;margin-top:1px;}
+.tl-date{font-size:0.65rem;color:var(--ink-l);margin-top:3px;}
+.tl-dot-maint{background:var(--amber);}
+.tl-dot-purchase{background:var(--green);}
+.tl-dot-complaint{background:var(--cr);}
+
+/* My Complaints tab */
+.complaint-card{
+  background:var(--surface);border-radius:10px;padding:0.85rem 1rem;
+  margin-bottom:0.6rem;border-left:3px solid var(--cr);
+}
+.cc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.3rem;}
+.cc-id{font-family:'Syne',sans-serif;font-weight:700;font-size:0.78rem;color:var(--ink);}
+.cc-status{font-size:0.65rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:100px;text-transform:uppercase;}
+.cc-pending{background:rgba(192,122,26,0.1);color:var(--amber);}
+.cc-resolved{background:rgba(45,122,79,0.1);color:var(--green);}
+.cc-progress{background:rgba(155,29,56,0.1);color:var(--cr);}
+.cc-desc{font-size:0.75rem;color:var(--ink-m);line-height:1.4;}
+.cc-date{font-size:0.65rem;color:var(--ink-l);margin-top:0.3rem;}
+
+/* scrollbar */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(26,16,21,0.15);border-radius:4px;}
 </style>
 </head>
 <body>
 
-<!-- BG -->
-<div class="bg">
-  <div class="blob blob-1"></div>
-  <div class="blob blob-2"></div>
-  <div class="blob blob-3"></div>
-</div>
-
-<!-- Floating PC Nodes (decorative) -->
-<div class="floating-nodes" id="floatingNodes"></div>
-
-<!-- BRAND BAR -->
-<div class="brand-bar">
-  <a href="#" class="brand-logo">
-    <div class="logo-icon">🧪</div>
-    Lab<span>Track</span>
-  </a>
-  <div class="brand-badge">
-    <div class="status-dot"></div>
-    All systems operational
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="tb-left">
+    <div class="tb-logo">
+      <div class="tb-logo-icon">🧪</div>
+      Lab<span>Track</span>
+    </div>
+    <div class="tb-sep"></div>
+    <span class="tb-page">Student Portal</span>
+  </div>
+  <div class="tb-right">
+    <div class="notif-btn" onclick="toggleNotif(this)" title="Notifications">
+      🔔
+      <div class="notif-dot" id="notifDot"></div>
+    </div>
+    <div class="tb-user">
+      <div class="avatar">SS</div>
+      Siddhant Salunke
+    </div>
+    <button class="logout-btn">↩ Logout</button>
   </div>
 </div>
 
-<!-- WRAPPER -->
-<div class="wrapper">
-  <div class="card" id="mainCard">
+<!-- MAIN -->
+<div class="main">
 
-    <!-- LEFT PANEL -->
-    <div class="left-panel">
-      <div class="panel-top">
-        <div class="panel-logo">
-          <div class="panel-logo-icon">🧪</div>
-          LabTrack
+  <!-- LEFT -->
+  <div class="left">
+
+    <!-- Lab Tabs -->
+    <div class="lab-tabs" id="labTabs"></div>
+
+    <!-- Map Area -->
+    <div class="map-area">
+      <div class="map-header">
+        <div>
+          <div class="map-title" id="mapTitle">Lab Layout — LAB 3A</div>
+          <div class="map-meta" id="mapMeta">Dual wing · 32 systems · Last updated just now</div>
         </div>
-        <p class="panel-tagline">Campus Lab Asset Management — visual maps, AI triage, real-time tracking.</p>
-
-        <!-- Mini Lab Map -->
-        <div class="mini-lab">
-          <div class="mini-lab-label">
-            Lab 2 — Live View
-            <span>● Active</span>
-          </div>
-          <div class="mini-grid" id="miniGrid"></div>
-          <div class="mini-legend">
-            <div class="ml-item"><div class="ml-dot ml-g"></div> Working</div>
-            <div class="ml-item"><div class="ml-dot ml-r"></div> Faulty</div>
-            <div class="ml-item"><div class="ml-dot ml-a"></div> Maintenance</div>
-          </div>
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" type="text" id="searchInput" placeholder="Search System ID…" oninput="handleSearch(this.value)">
         </div>
       </div>
 
-      <div class="panel-bottom">
-        <div class="panel-features">
-          <div class="pf-item"><div class="pf-icon">🗺️</div> Interactive visual lab maps</div>
-          <div class="pf-item"><div class="pf-icon">🤖</div> Gemini AI complaint triage</div>
-          <div class="pf-item"><div class="pf-icon">🎫</div> Kanban complaint board</div>
-          <div class="pf-item"><div class="pf-icon">📊</div> Admin analytics dashboard</div>
-        </div>
+      <div class="legend">
+        <div class="leg-item"><div class="leg-dot ld-g"></div>Working</div>
+        <div class="leg-item"><div class="leg-dot ld-r"></div>Faulty</div>
+        <div class="leg-item"><div class="leg-dot ld-a"></div>Maintenance</div>
+        <div class="leg-item" style="margin-left:auto;font-size:0.7rem;color:var(--ink-l);">Click any PC to view details</div>
+      </div>
+
+      <div class="lab-map-card">
+        <div class="map-top-bar">INSTRUCTOR CONSOLE</div>
+        <div id="labContent"></div>
+        <div class="map-bottom-bar">ENTRY / EXIT</div>
       </div>
     </div>
-
-    <!-- RIGHT PANEL -->
-    <div class="right-panel" id="rightPanel">
-      <div class="form-eyebrow">Sign In</div>
-      <h1 class="form-title">Welcome<br>Back.</h1>
-      <p class="form-sub">Access your lab dashboard or submit a complaint.</p>
-
-      <!-- Role Tabs -->
-      <div class="role-tabs">
-        <button class="role-tab active" id="tabStudent" onclick="setRole('student')">👨‍🎓 Student</button>
-        <button class="role-tab tab-admin" id="tabAdmin" onclick="setRole('admin')">👨‍🔧 Admin</button>
-      </div>
-
-      <!-- Email -->
-      <div class="field">
-        <label class="field-label" for="email">Email Address</label>
-        <div class="field-wrap">
-          <span class="field-icon">✉️</span>
-          <input class="field-input" type="email" id="email" placeholder="you@university.edu" autocomplete="off">
-        </div>
-      </div>
-
-      <!-- Password -->
-      <div class="field">
-        <label class="field-label" for="password">Password</label>
-        <div class="field-wrap">
-          <span class="field-icon">🔒</span>
-          <input class="field-input" type="password" id="password" placeholder="Enter your password">
-          <button class="pass-toggle" onclick="togglePass()" id="passToggle">👁️</button>
-        </div>
-        <div class="field-footer">
-          <label class="remember-wrap">
-            <input type="checkbox" id="remember">
-            <label for="remember">Remember me</label>
-          </label>
-          <a href="#" class="forgot-link">Forgot password?</a>
-        </div>
-      </div>
-
-      <!-- Login Button -->
-      <button class="btn-login" onclick="handleLogin()">
-        Sign In <span class="btn-arrow">→</span>
-      </button>
-
-      <!-- Demo Access -->
-      <div class="divider">
-        <div class="divider-line"></div>
-        <span class="divider-text">or try a demo account</span>
-        <div class="divider-line"></div>
-      </div>
-
-      <div class="demo-row">
-        <button class="btn-demo" onclick="fillDemo('student')">👨‍🎓 Student Demo</button>
-        <button class="btn-demo" onclick="fillDemo('admin')">👨‍🔧 Admin Demo</button>
-      </div>
-
-      <div class="signup-row">
-        <span class="signup-text">Don't have an account? </span>
-        <a href="#" class="signup-link">Create one →</a>
-      </div>
-
-      <!-- Success Overlay -->
-      <div class="success-overlay" id="successOverlay">
-        <div class="success-icon">✅</div>
-        <div class="success-title" id="successTitle">Welcome back!</div>
-        <div class="success-sub" id="successSub">Redirecting to dashboard…</div>
-      </div>
-    </div>
-
   </div>
 
-  <div class="footer-note">🔐 Secured by Supabase Auth · Campus Lab Asset Management System · 2025</div>
+  <!-- RIGHT -->
+  <div class="right">
+    <div class="panel-tabs">
+      <button class="ptab active" onclick="switchTab('details',this)">PC Details</button>
+      <button class="ptab" onclick="switchTab('timeline',this)">Timeline</button>
+      <button class="ptab" onclick="switchTab('complaints',this)">My Complaints <span id="complaintCount" style="background:var(--cr);color:white;font-size:0.6rem;padding:1px 5px;border-radius:100px;margin-left:3px;">2</span></button>
+    </div>
+    <div class="panel-body" id="panelBody"></div>
+  </div>
+
 </div>
 
 <script>
-  // ─── Mini Lab Grid ───
-  const miniData = ['g','g','g','r','g','g','a','g','g','g','g','r','g','g','g','g','a','g','r','g','g','s','g','g','g','g','g','g'];
-  const miniGrid = document.getElementById('miniGrid');
-  miniData.forEach((s, i) => {
-    const n = document.createElement('div');
-    n.className = `mn mn-${s}`;
-    n.textContent = `P${(i+1).toString().padStart(2,'0')}`;
-    miniGrid.appendChild(n);
-  });
+// ── DATA ──
+const labs = {
+  'LAB 2': {
+    systems:54, faults:0,
+    wings:{
+      left:[ ['g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g'],
+      ],
+      right:[]
+    },
+    layout:'single'
+  },
+  'LAB 3A': {
+    systems:32, faults:3,
+    layout:'dual',
+    left:[
+      ['g','g','g','g'],['g','g','g','g'],['g','g','g','g'],['g','g','g','g']
+    ],
+    right:[
+      ['g','r','g','g'],['g','g','g','g'],['g','g','g','g'],['g','g','r','r']
+    ]
+  },
+  'LAB 3B': {
+    systems:32, faults:20,
+    layout:'dual',
+    left:[
+      ['g','r','g','r'],['g','g','r','g'],['r','g','g','r'],['g','r','r','g']
+    ],
+    right:[
+      ['r','r','r','r'],['g','r','g','r'],['r','g','r','r'],['g','r','g','r']
+    ]
+  }
+};
 
-  // ─── Floating decorative nodes ───
-  const floatingContainer = document.getElementById('floatingNodes');
-  const nodeTypes = ['fn-green','fn-red','fn-amber'];
-  const positions = [
-    [8,15],[15,70],[5,45],[92,20],[88,60],[80,40],[20,85],[72,80],[40,10],[60,90]
+const pcDetails = {
+  'LAB3A-R-R1-P02':{id:'LAB3A-R-R1-P02',origId:'VJTI/IT-Infra/May-22/AIO/702/CE0TI/3/37/53/80-LAB3A-R-R1-P02',cpu:'Intel i7 12th Gen',ram:'32GB',purchase:'2022-07-08',lastMaint:'2025-04-14',status:'faulty'},
+  'LAB3A-R-R4-P03':{id:'LAB3A-R-R4-P03',origId:'VJTI/IT-Infra/Jun-22/AIO/703/CE0TI/3/37/53/83',cpu:'Intel i5 12th Gen',ram:'16GB',purchase:'2022-07-08',lastMaint:'2024-11-20',status:'faulty'},
+};
+
+const myComplaints = [
+  {pc:'LAB3A-R-R1-P02',desc:'Monitor flickers during heavy use tasks. Screen goes blank intermittently.',date:'2025-04-02',status:'progress',priority:'High'},
+  {pc:'LAB3B-L-R2-P03',desc:'Keyboard keys 3, E, D not responding.',date:'2025-03-28',status:'resolved',priority:'Low'},
+];
+
+let selectedLab = 'LAB 3A';
+let selectedPC = null;
+let formOpen = false;
+let currentTab = 'details';
+
+// ── BUILD LAB TABS ──
+function buildTabs(){
+  const cont = document.getElementById('labTabs');
+  cont.innerHTML = '';
+  Object.keys(labs).forEach(name=>{
+    const lab = labs[name];
+    const faultPct = Math.round((lab.faults/lab.systems)*100);
+    const div = document.createElement('div');
+    div.className = 'lab-tab' + (name===selectedLab?' active':'');
+    div.innerHTML = `
+      <div class="lt-name">${name}</div>
+      <div class="lt-meta">
+        <span class="lt-count">${lab.systems} sys</span>
+        <span class="lt-faulty ${lab.faults>0?'has-fault':'no-fault'}">${lab.faults>0?'⚠ '+lab.faults+' faulty':'✓ all clear'}</span>
+      </div>
+      <div class="lt-bar"><div class="lt-bar-fill" style="width:${faultPct}%"></div></div>
+    `;
+    div.onclick=()=>selectLab(name);
+    cont.appendChild(div);
+  });
+}
+
+function selectLab(name){
+  selectedLab=name;
+  selectedPC=null;
+  document.getElementById('searchInput').value='';
+  buildTabs();
+  buildMap();
+  document.getElementById('mapTitle').textContent='Lab Layout — '+name;
+  const lab=labs[name];
+  document.getElementById('mapMeta').textContent=`Dual wing · ${lab.systems} systems · ${lab.faults} faulty · Last updated just now`;
+  renderPanel();
+}
+
+// ── BUILD MAP ──
+function getStatus(code){return code==='g'?'working':code==='r'?'faulty':'maintenance';}
+function getStatusLabel(s){return s==='working'?'Working':s==='faulty'?'Faulty':'Maint.';}
+
+function makePC(wing,row,col,statusCode){
+  const status = getStatus(statusCode);
+  const pcId = `${selectedLab.replace(' ','')}${wing==='L'?'-L':'-R'}-R${row+1}-P${String(col+1).padStart(2,'0')}`;
+  const div = document.createElement('div');
+  div.className = `pc-node st-${status}${selectedPC===pcId?' selected':''}`;
+  div.dataset.pcid = pcId;
+  div.dataset.status = status;
+  div.innerHTML = `
+    <div class="pc-screen"></div>
+    <div class="pc-stand"></div>
+    <div class="pc-base"></div>
+    <div class="pc-id">P${String(col+1).padStart(2,'0')}</div>
+    <div class="pc-tooltip">${pcId}<br>${getStatusLabel(status)}</div>
+  `;
+  div.onclick=()=>selectPC(pcId,status,div);
+  return div;
+}
+
+function buildMap(){
+  const lab = labs[selectedLab];
+  const cont = document.getElementById('labContent');
+  cont.innerHTML='';
+  if(lab.layout==='dual'){
+    const grid = document.createElement('div');
+    grid.className='wings-grid';
+    // left wing
+    const leftCol=document.createElement('div');leftCol.className='wing-col';
+    const leftLabel=document.createElement('div');leftLabel.className='wing-label';leftLabel.textContent='LEFT WING';
+    leftCol.appendChild(leftLabel);
+    lab.left.forEach((row,ri)=>{
+      const rowDiv=document.createElement('div');rowDiv.className='wing-row';
+      row.forEach((st,ci)=>rowDiv.appendChild(makePC('L',ri,ci,st)));
+      leftCol.appendChild(rowDiv);
+    });
+    // lane
+    const lane=document.createElement('div');lane.className='open-lane';lane.textContent='OPEN LANE';
+    // right wing
+    const rightCol=document.createElement('div');rightCol.className='wing-col';
+    const rightLabel=document.createElement('div');rightLabel.className='wing-label';rightLabel.style.flexDirection='row-reverse';rightLabel.textContent='RIGHT WING';
+    rightCol.appendChild(rightLabel);
+    lab.right.forEach((row,ri)=>{
+      const rowDiv=document.createElement('div');rowDiv.className='wing-row';
+      row.forEach((st,ci)=>rowDiv.appendChild(makePC('R',ri,ci,st)));
+      rightCol.appendChild(rowDiv);
+    });
+    grid.appendChild(leftCol);grid.appendChild(lane);grid.appendChild(rightCol);
+    cont.appendChild(grid);
+  }
+}
+
+// ── SELECT PC ──
+function selectPC(pcId, status, el){
+  document.querySelectorAll('.pc-node').forEach(n=>n.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedPC = pcId;
+  formOpen = false;
+  if(currentTab==='timeline'||currentTab==='details') {
+    currentTab='details';
+    document.querySelectorAll('.ptab').forEach((t,i)=>{t.classList.toggle('active',i===0);});
+  }
+  renderPanel();
+}
+
+// ── PANEL ──
+function switchTab(tab, el){
+  currentTab=tab;
+  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderPanel();
+}
+
+function renderPanel(){
+  const body = document.getElementById('panelBody');
+  if(currentTab==='details') renderDetails(body);
+  else if(currentTab==='timeline') renderTimeline(body);
+  else renderComplaints(body);
+}
+
+function renderDetails(body){
+  if(!selectedPC){
+    body.innerHTML=`
+      <div class="empty-state">
+        <div class="empty-icon">🖥️</div>
+        <div class="empty-text">No PC selected</div>
+        <div class="empty-hint">Click any node on the lab map</div>
+      </div>
+      <div style="margin-top:1.5rem;background:var(--surface);border-radius:10px;padding:1rem;">
+        <div style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-l);margin-bottom:0.75rem;">Lab Summary</div>
+        ${Object.keys(labs).map(n=>{
+          const l=labs[n];
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.78rem;">
+            <span style="font-weight:500;color:${n===selectedLab?'var(--cr)':'var(--ink)'}">${n}</span>
+            <span style="color:${l.faults>0?'var(--cr)':'var(--green)'};font-size:0.72rem;">${l.faults>0?'⚠ '+l.faults+' faulty':'✓ clear'}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+    return;
+  }
+  const detail = pcDetails[selectedPC];
+  const status = detail?.status || document.querySelector('.pc-node.selected')?.dataset.status || 'working';
+  const statusLabel = status==='working'?'Working':status==='faulty'?'Faulty':'Maintenance';
+  const iconMap = {working:'🖥️',faulty:'⚠️',maintenance:'🔧'};
+  body.innerHTML=`
+    <div class="pc-detail">
+      <div class="pc-detail-header">
+        <div class="pc-detail-icon pdi-${status}">${iconMap[status]}</div>
+        <div>
+          <div class="pc-detail-id">${selectedPC}</div>
+          <div class="pc-status-badge psb-${status}">● ${statusLabel}</div>
+        </div>
+      </div>
+      <div class="spec-list">
+        <div class="spec-row"><span class="spec-key">System ID</span><span class="spec-val">${selectedPC}</span></div>
+        <div class="spec-row"><span class="spec-key">Original ID</span><span class="spec-val" style="font-size:0.65rem;">${detail?.origId||'—'}</span></div>
+        <div class="spec-row"><span class="spec-key">CPU</span><span class="spec-val">${detail?.cpu||'Intel i5 12th Gen'}</span></div>
+        <div class="spec-row"><span class="spec-key">RAM</span><span class="spec-val">${detail?.ram||'16GB DDR4'}</span></div>
+        <div class="spec-row"><span class="spec-key">Purchase Date</span><span class="spec-val">${detail?.purchase||'2022-07-08'}</span></div>
+        <div class="spec-row"><span class="spec-key">Last Maintenance</span><span class="spec-val">${detail?.lastMaint||'2025-03-10'}</span></div>
+      </div>
+      <button class="report-btn" onclick="toggleForm()">${formOpen?'✕ Cancel Report':'⚑ Report an Issue'}</button>
+      ${formOpen?`
+        <div class="complaint-form">
+          <label class="cf-label">Describe the issue</label>
+          <textarea class="cf-textarea" rows="3" placeholder="e.g. Screen goes blank every 10 minutes, requires hard restart…" id="issueDesc"></textarea>
+          <div style="margin-top:0.5rem;">
+            <label class="cf-label">Category</label>
+            <select style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.78rem;color:var(--ink);background:var(--white);outline:none;">
+              <option>Hardware</option><option>Software</option><option>Peripheral</option><option>Network</option><option>Other</option>
+            </select>
+          </div>
+          <div class="cf-row">
+            <button class="cf-submit" onclick="submitComplaint()">Submit →</button>
+            <button class="cf-cancel" onclick="toggleForm()">Cancel</button>
+          </div>
+        </div>
+      `:''}
+    </div>
+  `;
+}
+
+function renderTimeline(body){
+  if(!selectedPC){
+    body.innerHTML=`<div class="empty-state"><div class="empty-icon">🕒</div><div class="empty-text">No PC selected</div><div class="empty-hint">Select a PC to view its history</div></div>`;
+    return;
+  }
+  const items = [
+    {type:'Maintenance',desc:'Preventive maintenance completed — all components inspected.',date:'2026-03-19',dot:'tl-dot-maint'},
+    {type:'Purchase',desc:'Asset procured and registered in inventory.',date:'2023-08-03',dot:'tl-dot-purchase'},
   ];
-  positions.forEach(([left, top], i) => {
-    const n = document.createElement('div');
-    n.className = `f-node ${nodeTypes[i % 3]}`;
-    n.style.left = left + '%';
-    n.style.top = top + '%';
-    n.style.animationDelay = (i * 0.8) + 's';
-    n.style.animationDuration = (5 + i * 0.5) + 's';
-    n.textContent = `P${(i+1).toString().padStart(2,'0')}`;
-    floatingContainer.appendChild(n);
+  if(selectedPC==='LAB3A-R-R1-P02'){
+    items.unshift({type:'Complaint',desc:'Screen flickering reported by student. Marked High priority by AI triage.',date:'2025-04-02',dot:'tl-dot-complaint'});
+  }
+  body.innerHTML=`
+    <div style="font-size:0.75rem;font-weight:500;color:var(--ink);margin-bottom:0.75rem;">Timeline — ${selectedPC}</div>
+    <div class="timeline">
+      ${items.map((it,i)=>`
+        <div class="tl-item">
+          <div class="tl-dot-col">
+            <div class="tl-dot ${it.dot}"></div>
+            ${i<items.length-1?'<div class="tl-line"></div>':''}
+          </div>
+          <div>
+            <div class="tl-type">${it.type}</div>
+            <div class="tl-desc">${it.desc}</div>
+            <div class="tl-date">${it.date}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderComplaints(body){
+  if(!myComplaints.length){
+    body.innerHTML=`<div class="empty-state"><div class="empty-icon">🎫</div><div class="empty-text">No complaints yet</div><div class="empty-hint">Report a PC issue to see it here</div></div>`;
+    return;
+  }
+  const statusMap={progress:'In Progress',resolved:'Resolved',pending:'Pending'};
+  const classMap={progress:'cc-progress',resolved:'cc-resolved',pending:'cc-pending'};
+  body.innerHTML=`
+    <div style="font-size:0.75rem;font-weight:500;color:var(--ink);margin-bottom:0.75rem;">My Submitted Complaints</div>
+    ${myComplaints.map(c=>`
+      <div class="complaint-card">
+        <div class="cc-top">
+          <div class="cc-id">${c.pc}</div>
+          <span class="cc-status ${classMap[c.status]}">${statusMap[c.status]}</span>
+        </div>
+        <div class="cc-desc">${c.desc}</div>
+        <div class="cc-date">${c.date} · Priority: <strong>${c.priority}</strong></div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function toggleForm(){
+  formOpen=!formOpen;
+  renderPanel();
+}
+
+function submitComplaint(){
+  const desc=document.getElementById('issueDesc')?.value;
+  if(!desc||desc.trim().length<5){
+    document.getElementById('issueDesc').style.borderColor='var(--cr)';
+    return;
+  }
+  myComplaints.unshift({pc:selectedPC,desc:desc.trim(),date:'2026-04-04',status:'pending',priority:'Analyzing…'});
+  document.getElementById('complaintCount').textContent=myComplaints.length;
+  formOpen=false;
+  currentTab='complaints';
+  document.querySelectorAll('.ptab').forEach((t,i)=>{t.classList.toggle('active',i===2);});
+  renderPanel();
+}
+
+function handleSearch(val){
+  document.querySelectorAll('.pc-node').forEach(n=>{
+    if(!val){n.style.opacity='1';n.style.transform='';return;}
+    const match = n.dataset.pcid.toLowerCase().includes(val.toLowerCase());
+    n.style.opacity=match?'1':'0.2';
+    n.style.transform=match?'scale(1.08)':'';
   });
+}
 
-  // ─── Role Tabs ───
-  function setRole(role) {
-    document.getElementById('tabStudent').classList.toggle('active', role === 'student');
-    document.getElementById('tabAdmin').classList.toggle('active', role === 'admin');
-    document.getElementById('email').placeholder = role === 'admin' ? 'admin@lab.university.edu' : 'you@university.edu';
-  }
+function toggleNotif(btn){
+  document.getElementById('notifDot').style.display='none';
+}
 
-  // ─── Password Toggle ───
-  let passVisible = false;
-  function togglePass() {
-    passVisible = !passVisible;
-    const input = document.getElementById('password');
-    input.type = passVisible ? 'text' : 'password';
-    document.getElementById('passToggle').textContent = passVisible ? '🙈' : '👁️';
-  }
-
-  // ─── Demo Fill ───
-  function fillDemo(role) {
-    setRole(role);
-    document.getElementById('email').value = role === 'admin' ? 'admin@labtrack.edu' : 'student@labtrack.edu';
-    document.getElementById('password').value = role === 'admin' ? 'admin2025' : 'student2025';
-    document.getElementById('tabStudent').classList.toggle('active', role === 'student');
-    document.getElementById('tabAdmin').classList.toggle('active', role === 'admin');
-  }
-
-  // ─── Login Handler ───
-  function handleLogin() {
-    const email = document.getElementById('email').value;
-    const pass = document.getElementById('password').value;
-    if (!email || !pass) {
-      document.getElementById('email').style.borderColor = '#C02444';
-      document.getElementById('password').style.borderColor = '#C02444';
-      setTimeout(() => {
-        document.getElementById('email').style.borderColor = '';
-        document.getElementById('password').style.borderColor = '';
-      }, 1500);
-      return;
-    }
-    const isAdmin = document.getElementById('tabAdmin').classList.contains('active');
-    const overlay = document.getElementById('successOverlay');
-    document.getElementById('successTitle').textContent = isAdmin ? 'Welcome, Admin!' : 'Welcome back!';
-    document.getElementById('successSub').textContent = isAdmin ? 'Loading admin dashboard…' : 'Loading your lab view…';
-    overlay.classList.add('show');
-  }
-
-  // close success on click
-  document.getElementById('successOverlay').addEventListener('click', function() {
-    this.classList.remove('show');
-  });
+// ── INIT ──
+buildTabs();
+buildMap();
+renderPanel();
 </script>
 </body>
 </html>

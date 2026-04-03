@@ -21,8 +21,9 @@ export default function NotificationBell() {
 
   return (
     <div className="relative">
-      <button onClick={() => setOpen((p) => !p)} className="rounded-xl border border-gray-200 p-2 hover:bg-gray-50">
+      <button onClick={() => setOpen((p) => !p)} className="relative rounded-xl border border-[#9d2235]/20 bg-white p-2 hover:border-[#9d2235]/35 hover:bg-[#fff8f8]">
         <Bell size={18} className="text-accent" />
+        {!!items.length && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-accent" />}
       </button>
       <AnimatePresence>
         {open && (
@@ -30,7 +31,7 @@ export default function NotificationBell() {
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            className="absolute right-0 z-30 mt-2 w-80 rounded-2xl border border-gray-100 bg-white p-3 shadow-glass"
+            className="absolute right-0 z-30 mt-2 w-80 rounded-2xl border border-[#9d2235]/12 bg-white p-3 shadow-glass"
           >
             <h4 className="mb-2 text-sm font-semibold">Notifications</h4>
             <div className="max-h-72 space-y-2 overflow-y-auto">
