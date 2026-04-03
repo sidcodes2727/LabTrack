@@ -17,16 +17,6 @@ export default function LoginPage({ onAuth }) {
   const [rememberMe, setRememberMe] = useState(true);
   const [authSuccess, setAuthSuccess] = useState(false);
 
-  const setDemoAccount = (role) => {
-    setForm((prev) => ({
-      ...prev,
-      role,
-      email: role === 'admin' ? 'admin@labtrack.edu' : 'student@labtrack.edu',
-      password: 'Password@123'
-    }));
-    setMode('login');
-  };
-
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -239,21 +229,6 @@ export default function LoginPage({ onAuth }) {
               >
                 {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
               </button>
-
-              <div className="flex items-center gap-2 pt-1 text-xs text-gray-400">
-                <div className="h-px flex-1 bg-gray-200" />
-                <span>or try demo account</span>
-                <div className="h-px flex-1 bg-gray-200" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setDemoAccount('student')} className="rounded-xl border border-gray-200 py-2 text-sm hover:border-accent/40">
-                  Student Demo
-                </button>
-                <button type="button" onClick={() => setDemoAccount('admin')} className="rounded-xl border border-gray-200 py-2 text-sm hover:border-accent/40">
-                  Admin Demo
-                </button>
-              </div>
 
               <div className="pt-2 text-center text-sm text-gray-600">
                 <button type="button" className="text-accent" onClick={() => setMode((p) => (p === 'login' ? 'signup' : 'login'))}>
