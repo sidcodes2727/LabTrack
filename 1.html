@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LabTrack — Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --crimson: #9B1D38;
+    --crimson-light: #C02444;
+    --crimson-dim: #7a1730;
+    --crimson-glow: rgba(155,29,56,0.25);
+    --cream: #F5F0EB;
+    --ink: #1A1015;
+    --ink-muted: #7A6570;
+    --white: #FDFAF7;
+    --border: rgba(26,16,21,0.1);
+  }
+
+  html, body {
+    height: 100%;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    overflow: hidden;
+  }
+
+  /* ─── BACKGROUND ─── */
+  .bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
+  /* subtle grid */
+  .bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(155,29,56,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(155,29,56,0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  /* radial glow blobs */
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+  }
+
+  .blob-1 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(155,29,56,0.12) 0%, transparent 70%);
+    top: -100px; left: -100px;
+    animation: driftA 12s ease-in-out infinite alternate;
+  }
+
+  .blob-2 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(155,29,56,0.08) 0%, transparent 70%);
+    bottom: -80px; right: -80px;
+    animation: driftB 15s ease-in-out infinite alternate;
+  }
+
+  .blob-3 {
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(212,169,74,0.06) 0%, transparent 70%);
+    top: 50%; right: 20%;
+    animation: driftC 10s ease-in-out infinite alternate;
+  }
+
+  @keyframes driftA {
+    from { transform: translate(0, 0); }
+    to   { transform: translate(60px, 40px); }
+  }
+  @keyframes driftB {
+    from { transform: translate(0, 0); }
+    to   { transform: translate(-40px, -60px); }
+  }
+  @keyframes driftC {
+    from { transform: translate(0, -50%); }
+    to   { transform: translate(-30px, calc(-50% + 30px)); }
+  }
+
+  /* noise overlay */
+  .bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.025'/%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+
+  /* ─── FLOATING PC NODES (decoration) ─── */
+  .floating-nodes {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .f-node {
+    position: absolute;
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    opacity: 0;
+    animation: nodeFloat 6s ease-in-out infinite;
+  }
+
+  .fn-green { background: rgba(45,122,79,0.1); color: #2D7A4F; border: 1px solid rgba(45,122,79,0.2); }
+  .fn-red   { background: rgba(155,29,56,0.08); color: var(--crimson); border: 1px solid rgba(155,29,56,0.15); }
+  .fn-amber { background: rgba(192,122,26,0.1); color: #C07A1A; border: 1px solid rgba(192,122,26,0.2); }
+
+  @keyframes nodeFloat {
+    0%   { opacity: 0; transform: translateY(20px); }
+    20%  { opacity: 1; }
+    80%  { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-20px); }
+  }
+
+  /* ─── WRAPPER ─── */
+  .wrapper {
+    position: relative;
+    z-index: 10;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  /* ─── TOP BRAND BAR ─── */
+  .brand-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.1rem 2.5rem;
+    background: rgba(245,240,235,0.7);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(155,29,56,0.08);
+  }
+
+  .brand-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.3rem;
+    color: var(--ink);
+    letter-spacing: -0.03em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+  }
+
+  .logo-icon {
+    width: 26px; height: 26px;
+    background: var(--crimson);
+    color: white;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+  }
+
+  .brand-logo span { color: var(--crimson); }
+
+  .brand-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.72rem;
+    color: var(--ink-muted);
+    background: rgba(26,16,21,0.05);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 0.3rem 0.85rem;
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    background: #2D7A4F;
+    border-radius: 50%;
+    animation: statusPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes statusPulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(45,122,79,0.4); }
+    50%       { opacity: 0.7; box-shadow: 0 0 0 4px rgba(45,122,79,0); }
+  }
+
+  /* ─── CARD ─── */
+  .card {
+    width: 100%;
+    max-width: 860px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow:
+      0 32px 80px rgba(26,16,21,0.14),
+      0 8px 24px rgba(26,16,21,0.08),
+      0 0 0 1px rgba(26,16,21,0.05);
+    opacity: 0;
+    transform: translateY(28px);
+    animation: cardIn 0.7s 0.2s cubic-bezier(0.16,1,0.3,1) forwards;
+  }
+
+  @keyframes cardIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── LEFT PANEL ─── */
+  .left-panel {
+    background: var(--crimson);
+    padding: 3rem 2.5rem;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 500px;
+  }
+
+  /* geometric decoration */
+  .left-panel::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    border: 40px solid rgba(255,255,255,0.06);
+  }
+
+  .left-panel::after {
+    content: '';
+    position: absolute;
+    bottom: -80px; left: -40px;
+    width: 280px; height: 280px;
+    border-radius: 50%;
+    border: 50px solid rgba(255,255,255,0.04);
+  }
+
+  .panel-top { position: relative; z-index: 2; }
+
+  .panel-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 2rem;
+    color: white;
+    letter-spacing: -0.04em;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .panel-logo-icon {
+    width: 32px; height: 32px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+  }
+
+  .panel-tagline {
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.65);
+    line-height: 1.65;
+    font-weight: 300;
+    max-width: 240px;
+    margin-bottom: 2.5rem;
+  }
+
+  /* mini lab grid in left panel */
+  .mini-lab {
+    position: relative;
+    z-index: 2;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  .mini-lab-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.45);
+    margin-bottom: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .mini-lab-label span {
+    background: rgba(45,122,79,0.25);
+    color: #7FFFC4;
+    border-radius: 100px;
+    padding: 0.15rem 0.6rem;
+    font-size: 0.62rem;
+  }
+
+  .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+  }
+
+  .mn {
+    aspect-ratio: 1;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.45rem;
+    font-weight: 700;
+    color: white;
+    cursor: default;
+  }
+
+  .mn-g { background: rgba(45,122,79,0.5); }
+  .mn-r { background: rgba(255,255,255,0.2); }
+  .mn-a { background: rgba(192,122,26,0.5); }
+  .mn-e { background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.1); }
+  .mn-s { background: rgba(255,255,255,0.9); color: var(--crimson) !important; box-shadow: 0 0 0 2px rgba(255,255,255,0.5); animation: selectedPulse 2s ease-in-out infinite; }
+
+  @keyframes selectedPulse {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(255,255,255,0.5); }
+    50%       { box-shadow: 0 0 0 4px rgba(255,255,255,0.2); }
+  }
+
+  .mini-legend {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .ml-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.63rem;
+    color: rgba(255,255,255,0.45);
+  }
+
+  .ml-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .ml-g { background: rgba(45,122,79,0.8); }
+  .ml-r { background: rgba(255,255,255,0.5); }
+  .ml-a { background: rgba(192,122,26,0.8); }
+
+  .panel-bottom {
+    position: relative;
+    z-index: 2;
+  }
+
+  .panel-features {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .pf-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.65);
+    font-weight: 300;
+  }
+
+  .pf-icon {
+    width: 22px; height: 22px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+  }
+
+  /* ─── RIGHT PANEL ─── */
+  .right-panel {
+    background: var(--white);
+    padding: 3rem 2.75rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .form-eyebrow {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--crimson);
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .form-eyebrow::before {
+    content: '';
+    width: 16px; height: 2px;
+    background: var(--crimson);
+    border-radius: 2px;
+  }
+
+  .form-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.9rem;
+    letter-spacing: -0.035em;
+    color: var(--ink);
+    line-height: 1.1;
+    margin-bottom: 0.5rem;
+  }
+
+  .form-sub {
+    font-size: 0.85rem;
+    color: var(--ink-muted);
+    margin-bottom: 2rem;
+    font-weight: 300;
+    line-height: 1.55;
+  }
+
+  /* role tabs */
+  .role-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 1.75rem;
+    background: rgba(26,16,21,0.05);
+    border-radius: 12px;
+    padding: 4px;
+  }
+
+  .role-tab {
+    padding: 0.6rem;
+    border-radius: 9px;
+    border: none;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--ink-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+
+  .role-tab.active {
+    background: var(--white);
+    color: var(--ink);
+    box-shadow: 0 2px 8px rgba(26,16,21,0.1);
+  }
+
+  .role-tab.active.tab-admin {
+    color: var(--crimson);
+  }
+
+  /* form fields */
+  .field {
+    margin-bottom: 1rem;
+  }
+
+  .field-label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 0.4rem;
+    display: block;
+    letter-spacing: 0.01em;
+  }
+
+  .field-wrap {
+    position: relative;
+  }
+
+  .field-icon {
+    position: absolute;
+    left: 0.9rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.85rem;
+    color: var(--ink-muted);
+    pointer-events: none;
+  }
+
+  .field-input {
+    width: 100%;
+    padding: 0.75rem 0.9rem 0.75rem 2.6rem;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    background: rgba(26,16,21,0.02);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.875rem;
+    color: var(--ink);
+    outline: none;
+    transition: all 0.2s;
+  }
+
+  .field-input::placeholder { color: rgba(92,74,82,0.5); }
+
+  .field-input:focus {
+    border-color: var(--crimson);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(155,29,56,0.08);
+  }
+
+  .pass-toggle {
+    position: absolute;
+    right: 0.9rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+    padding: 0;
+    transition: color 0.2s;
+  }
+
+  .pass-toggle:hover { color: var(--crimson); }
+
+  .field-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.4rem;
+  }
+
+  .remember-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+  }
+
+  .remember-wrap input {
+    width: 14px; height: 14px;
+    accent-color: var(--crimson);
+    cursor: pointer;
+  }
+
+  .remember-wrap label {
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    cursor: pointer;
+  }
+
+  .forgot-link {
+    font-size: 0.75rem;
+    color: var(--crimson);
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+
+  .forgot-link:hover { opacity: 0.7; }
+
+  /* login button */
+  .btn-login {
+    width: 100%;
+    padding: 0.85rem;
+    margin-top: 0.75rem;
+    background: var(--crimson);
+    border: none;
+    border-radius: 11px;
+    color: white;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(155,29,56,0.3);
+  }
+
+  .btn-login::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    transition: left 0.5s;
+  }
+
+  .btn-login:hover { background: var(--crimson-dim); transform: translateY(-1px); box-shadow: 0 8px 28px rgba(155,29,56,0.35); }
+  .btn-login:hover::before { left: 100%; }
+  .btn-login:active { transform: translateY(0); }
+
+  .btn-arrow { transition: transform 0.2s; }
+  .btn-login:hover .btn-arrow { transform: translateX(3px); }
+
+  /* divider */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 1.25rem 0;
+  }
+
+  .divider-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .divider-text {
+    font-size: 0.72rem;
+    color: var(--ink-muted);
+    white-space: nowrap;
+  }
+
+  /* demo buttons */
+  .demo-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .btn-demo {
+    padding: 0.6rem 0.75rem;
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    background: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--ink-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+
+  .btn-demo:hover { border-color: var(--crimson); color: var(--crimson); background: rgba(155,29,56,0.03); }
+
+  /* signup link */
+  .signup-row {
+    text-align: center;
+    margin-top: 1rem;
+  }
+
+  .signup-text {
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+  }
+
+  .signup-link {
+    color: var(--crimson);
+    text-decoration: none;
+    font-weight: 500;
+    transition: opacity 0.2s;
+  }
+
+  .signup-link:hover { opacity: 0.7; }
+
+  /* ─── SUCCESS STATE ─── */
+  .success-overlay {
+    position: absolute;
+    inset: 0;
+    background: white;
+    border-radius: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s;
+    z-index: 10;
+  }
+
+  .success-overlay.show { opacity: 1; pointer-events: all; }
+
+  .success-icon {
+    width: 64px; height: 64px;
+    background: rgba(45,122,79,0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+  }
+
+  .success-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: var(--ink);
+  }
+
+  .success-sub { font-size: 0.85rem; color: var(--ink-muted); }
+
+  /* ─── FOOTER NOTE ─── */
+  .footer-note {
+    margin-top: 1.75rem;
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--ink-muted);
+    opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+
+<!-- BG -->
+<div class="bg">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+
+<!-- Floating PC Nodes (decorative) -->
+<div class="floating-nodes" id="floatingNodes"></div>
+
+<!-- BRAND BAR -->
+<div class="brand-bar">
+  <a href="#" class="brand-logo">
+    <div class="logo-icon">🧪</div>
+    Lab<span>Track</span>
+  </a>
+  <div class="brand-badge">
+    <div class="status-dot"></div>
+    All systems operational
+  </div>
+</div>
+
+<!-- WRAPPER -->
+<div class="wrapper">
+  <div class="card" id="mainCard">
+
+    <!-- LEFT PANEL -->
+    <div class="left-panel">
+      <div class="panel-top">
+        <div class="panel-logo">
+          <div class="panel-logo-icon">🧪</div>
+          LabTrack
+        </div>
+        <p class="panel-tagline">Campus Lab Asset Management — visual maps, AI triage, real-time tracking.</p>
+
+        <!-- Mini Lab Map -->
+        <div class="mini-lab">
+          <div class="mini-lab-label">
+            Lab 2 — Live View
+            <span>● Active</span>
+          </div>
+          <div class="mini-grid" id="miniGrid"></div>
+          <div class="mini-legend">
+            <div class="ml-item"><div class="ml-dot ml-g"></div> Working</div>
+            <div class="ml-item"><div class="ml-dot ml-r"></div> Faulty</div>
+            <div class="ml-item"><div class="ml-dot ml-a"></div> Maintenance</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-bottom">
+        <div class="panel-features">
+          <div class="pf-item"><div class="pf-icon">🗺️</div> Interactive visual lab maps</div>
+          <div class="pf-item"><div class="pf-icon">🤖</div> Gemini AI complaint triage</div>
+          <div class="pf-item"><div class="pf-icon">🎫</div> Kanban complaint board</div>
+          <div class="pf-item"><div class="pf-icon">📊</div> Admin analytics dashboard</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel" id="rightPanel">
+      <div class="form-eyebrow">Sign In</div>
+      <h1 class="form-title">Welcome<br>Back.</h1>
+      <p class="form-sub">Access your lab dashboard or submit a complaint.</p>
+
+      <!-- Role Tabs -->
+      <div class="role-tabs">
+        <button class="role-tab active" id="tabStudent" onclick="setRole('student')">👨‍🎓 Student</button>
+        <button class="role-tab tab-admin" id="tabAdmin" onclick="setRole('admin')">👨‍🔧 Admin</button>
+      </div>
+
+      <!-- Email -->
+      <div class="field">
+        <label class="field-label" for="email">Email Address</label>
+        <div class="field-wrap">
+          <span class="field-icon">✉️</span>
+          <input class="field-input" type="email" id="email" placeholder="you@university.edu" autocomplete="off">
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div class="field">
+        <label class="field-label" for="password">Password</label>
+        <div class="field-wrap">
+          <span class="field-icon">🔒</span>
+          <input class="field-input" type="password" id="password" placeholder="Enter your password">
+          <button class="pass-toggle" onclick="togglePass()" id="passToggle">👁️</button>
+        </div>
+        <div class="field-footer">
+          <label class="remember-wrap">
+            <input type="checkbox" id="remember">
+            <label for="remember">Remember me</label>
+          </label>
+          <a href="#" class="forgot-link">Forgot password?</a>
+        </div>
+      </div>
+
+      <!-- Login Button -->
+      <button class="btn-login" onclick="handleLogin()">
+        Sign In <span class="btn-arrow">→</span>
+      </button>
+
+      <!-- Demo Access -->
+      <div class="divider">
+        <div class="divider-line"></div>
+        <span class="divider-text">or try a demo account</span>
+        <div class="divider-line"></div>
+      </div>
+
+      <div class="demo-row">
+        <button class="btn-demo" onclick="fillDemo('student')">👨‍🎓 Student Demo</button>
+        <button class="btn-demo" onclick="fillDemo('admin')">👨‍🔧 Admin Demo</button>
+      </div>
+
+      <div class="signup-row">
+        <span class="signup-text">Don't have an account? </span>
+        <a href="#" class="signup-link">Create one →</a>
+      </div>
+
+      <!-- Success Overlay -->
+      <div class="success-overlay" id="successOverlay">
+        <div class="success-icon">✅</div>
+        <div class="success-title" id="successTitle">Welcome back!</div>
+        <div class="success-sub" id="successSub">Redirecting to dashboard…</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-note">🔐 Secured by Supabase Auth · Campus Lab Asset Management System · 2025</div>
+</div>
+
+<script>
+  // ─── Mini Lab Grid ───
+  const miniData = ['g','g','g','r','g','g','a','g','g','g','g','r','g','g','g','g','a','g','r','g','g','s','g','g','g','g','g','g'];
+  const miniGrid = document.getElementById('miniGrid');
+  miniData.forEach((s, i) => {
+    const n = document.createElement('div');
+    n.className = `mn mn-${s}`;
+    n.textContent = `P${(i+1).toString().padStart(2,'0')}`;
+    miniGrid.appendChild(n);
+  });
+
+  // ─── Floating decorative nodes ───
+  const floatingContainer = document.getElementById('floatingNodes');
+  const nodeTypes = ['fn-green','fn-red','fn-amber'];
+  const positions = [
+    [8,15],[15,70],[5,45],[92,20],[88,60],[80,40],[20,85],[72,80],[40,10],[60,90]
+  ];
+  positions.forEach(([left, top], i) => {
+    const n = document.createElement('div');
+    n.className = `f-node ${nodeTypes[i % 3]}`;
+    n.style.left = left + '%';
+    n.style.top = top + '%';
+    n.style.animationDelay = (i * 0.8) + 's';
+    n.style.animationDuration = (5 + i * 0.5) + 's';
+    n.textContent = `P${(i+1).toString().padStart(2,'0')}`;
+    floatingContainer.appendChild(n);
+  });
+
+  // ─── Role Tabs ───
+  function setRole(role) {
+    document.getElementById('tabStudent').classList.toggle('active', role === 'student');
+    document.getElementById('tabAdmin').classList.toggle('active', role === 'admin');
+    document.getElementById('email').placeholder = role === 'admin' ? 'admin@lab.university.edu' : 'you@university.edu';
+  }
+
+  // ─── Password Toggle ───
+  let passVisible = false;
+  function togglePass() {
+    passVisible = !passVisible;
+    const input = document.getElementById('password');
+    input.type = passVisible ? 'text' : 'password';
+    document.getElementById('passToggle').textContent = passVisible ? '🙈' : '👁️';
+  }
+
+  // ─── Demo Fill ───
+  function fillDemo(role) {
+    setRole(role);
+    document.getElementById('email').value = role === 'admin' ? 'admin@labtrack.edu' : 'student@labtrack.edu';
+    document.getElementById('password').value = role === 'admin' ? 'admin2025' : 'student2025';
+    document.getElementById('tabStudent').classList.toggle('active', role === 'student');
+    document.getElementById('tabAdmin').classList.toggle('active', role === 'admin');
+  }
+
+  // ─── Login Handler ───
+  function handleLogin() {
+    const email = document.getElementById('email').value;
+    const pass = document.getElementById('password').value;
+    if (!email || !pass) {
+      document.getElementById('email').style.borderColor = '#C02444';
+      document.getElementById('password').style.borderColor = '#C02444';
+      setTimeout(() => {
+        document.getElementById('email').style.borderColor = '';
+        document.getElementById('password').style.borderColor = '';
+      }, 1500);
+      return;
+    }
+    const isAdmin = document.getElementById('tabAdmin').classList.contains('active');
+    const overlay = document.getElementById('successOverlay');
+    document.getElementById('successTitle').textContent = isAdmin ? 'Welcome, Admin!' : 'Welcome back!';
+    document.getElementById('successSub').textContent = isAdmin ? 'Loading admin dashboard…' : 'Loading your lab view…';
+    overlay.classList.add('show');
+  }
+
+  // close success on click
+  document.getElementById('successOverlay').addEventListener('click', function() {
+    this.classList.remove('show');
+  });
+</script>
+</body>
+</html>

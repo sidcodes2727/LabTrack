@@ -41,7 +41,7 @@ router.post('/signup', async (req, res, next) => {
 
 router.post('/login', async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
 
     const { data: user, error } = await supabase
       .from('users')
@@ -57,6 +57,10 @@ router.post('/login', async (req, res, next) => {
     const isValid = await bcrypt.compare(password, user.password_hash);
     if (!isValid) {
       return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    if (role && user.role !== role) {
+      return res.status(403).json({ message: `This account is ${user.role}. Switch role tab to continue.` });
     }
 
     const token = jwt.sign(

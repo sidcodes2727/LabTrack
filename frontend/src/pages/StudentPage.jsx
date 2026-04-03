@@ -59,13 +59,23 @@ export default function StudentPage({ session, onLogout }) {
   const selectedLabel = useMemo(() => (selectedAsset ? `${selectedAsset.system_id} (${selectedAsset.status})` : 'Select a PC node'), [selectedAsset]);
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(140deg,#ffffff_0%,#fff7f8_58%,#ffecef_100%)] p-6">
-      <motion.header initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-6 flex items-center justify-between rounded-3xl bg-white/75 p-4 shadow-glass backdrop-blur-md">
+    <div className="relative min-h-screen overflow-hidden bg-[#f6f2f0] p-6">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(157,34,53,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(157,34,53,0.045)_1px,transparent_1px)] bg-[size:38px_38px]" />
+      <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-[#9d2235]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 right-0 h-80 w-80 rounded-full bg-[#9d2235]/10 blur-3xl" />
+
+      <motion.header
+        initial={{ y: -12, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="relative z-10 mb-6 flex items-center justify-between rounded-3xl border border-[#9d2235]/10 bg-white/80 p-4 shadow-glass backdrop-blur-md"
+      >
         <div>
-          <h1 className="text-2xl font-semibold">LabTrack Student Portal</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Lab <span className="text-accent">Track</span> Student Portal
+          </h1>
           <p className="text-sm text-gray-600">Welcome, {session.user.name}</p>
         </div>
-        <button className="flex items-center gap-2 rounded-xl border px-3 py-2" onClick={onLogout}>
+        <button className="flex items-center gap-2 rounded-xl border border-[#9d2235]/20 bg-white px-3 py-2 hover:border-[#9d2235]/40" onClick={onLogout}>
           <LogOut size={16} /> Logout
         </button>
       </motion.header>
@@ -76,7 +86,7 @@ export default function StudentPage({ session, onLogout }) {
           <Skeleton className="h-72" />
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="relative z-10 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-5">
             <div className="grid gap-3 sm:grid-cols-3">
               {labs.map((lab) => (
@@ -84,7 +94,9 @@ export default function StudentPage({ session, onLogout }) {
                   key={lab.lab}
                   onClick={() => setSelectedLab(lab.lab)}
                   className={`rounded-2xl border p-4 text-left transition ${
-                    selectedLab === lab.lab ? 'border-accent bg-white shadow-glass' : 'border-white/70 bg-white/60'
+                    selectedLab === lab.lab
+                      ? 'border-accent bg-white shadow-[0_10px_30px_rgba(157,34,53,0.12)]'
+                      : 'border-[#9d2235]/10 bg-white/70 hover:border-[#9d2235]/25'
                   }`}
                 >
                   <div className="font-semibold">{lab.lab}</div>
@@ -93,14 +105,14 @@ export default function StudentPage({ session, onLogout }) {
                 </button>
               ))}
             </div>
-            <div className="rounded-3xl bg-white/75 p-4 shadow-glass backdrop-blur-md">
+            <div className="rounded-3xl border border-[#9d2235]/10 bg-white/85 p-4 shadow-glass backdrop-blur-md">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold">Lab Layout - {selectedLab}</h2>
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search System ID / Original ID"
-                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/50"
                 />
               </div>
               <LabVisualizer assets={assets} onSelect={loadDetail} selectedId={selectedAsset?.id} />
@@ -108,7 +120,7 @@ export default function StudentPage({ session, onLogout }) {
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-3xl bg-white p-5 shadow-glass">
+            <div className="rounded-3xl border border-[#9d2235]/10 bg-white p-5 shadow-glass">
               <h3 className="text-lg font-semibold">PC Details</h3>
               <p className="font-mono text-xs text-gray-500">{selectedLabel}</p>
               {selectedAsset ? (
@@ -127,7 +139,7 @@ export default function StudentPage({ session, onLogout }) {
               )}
             </div>
 
-            <div className="rounded-3xl bg-white p-5 shadow-glass">
+            <div className="rounded-3xl border border-[#9d2235]/10 bg-white p-5 shadow-glass">
               <h3 className="text-lg font-semibold">Asset Timeline</h3>
               <div className="mt-3 space-y-3">
                 {history.map((item) => (
