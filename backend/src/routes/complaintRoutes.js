@@ -87,6 +87,19 @@ router.post('/', authenticate, upload.single('image'), async (req, res, next) =>
 
     if (complaintError) throw complaintError;
 
+    const { error: assetStatusError } = await supabase
+      .from('assets')
+      .update({ status: 'faulty' })
+      .eq('id', assetId);
+
+    if (assetStatusError) throw assetStatusError;
+
+    await supabase.from('history').insert({
+      asset_id: assetId,
+      event_type: 'Complaint Logged',
+      details: `Complaint ${complaint.id} created with priority ${finalPriority}`
+    });
+
     await supabase.from('notifications').insert({
       title: 'New complaint created',
       message: `Complaint ${complaint.id} created with priority ${finalPriority}`,

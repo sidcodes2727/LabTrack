@@ -61,6 +61,14 @@ router.patch('/kanban/:id', async (req, res, next) => {
   try {
     const { status } = req.body;
 
+    const { data: currentComplaint, error: currentComplaintError } = await supabase
+      .from('complaints')
+      .select('id, asset_id')
+      .eq('id', req.params.id)
+      .single();
+
+    if (currentComplaintError) throw currentComplaintError;
+
     const { data, error } = await supabase
       .from('complaints')
       .update({ status, updated_at: new Date().toISOString() })
@@ -69,6 +77,37 @@ router.patch('/kanban/:id', async (req, res, next) => {
       .single();
 
     if (error) throw error;
+
+    if (status === 'resolved') {
+      const { count: unresolvedCount, error: unresolvedError } = await supabase
+        .from('complaints')
+        .select('*', { count: 'exact', head: true })
+        .eq('asset_id', currentComplaint.asset_id)
+        .in('status', ['pending', 'in_progress']);
+
+      if (unresolvedError) throw unresolvedError;
+
+      const nextAssetStatus = unresolvedCount > 0 ? 'faulty' : 'working';
+      const { error: assetStatusError } = await supabase
+        .from('assets')
+        .update({ status: nextAssetStatus })
+        .eq('id', currentComplaint.asset_id);
+
+      if (assetStatusError) throw assetStatusError;
+
+      await supabase.from('history').insert({
+        asset_id: currentComplaint.asset_id,
+        event_type: 'Complaint Resolved',
+        details: `Complaint ${req.params.id} moved to resolved`
+      });
+    } else {
+      const { error: assetStatusError } = await supabase
+        .from('assets')
+        .update({ status: 'faulty' })
+        .eq('id', currentComplaint.asset_id);
+
+      if (assetStatusError) throw assetStatusError;
+    }
 
     await supabase.from('notifications').insert({
       title: 'Complaint status updated',
