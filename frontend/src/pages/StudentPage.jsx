@@ -7,6 +7,32 @@ import LabVisualizer from '../components/LabVisualizer';
 import ComplaintModal from '../components/ComplaintModal';
 import Skeleton from '../components/Skeleton';
 
+const formatComplaintDate = (rawDate) => {
+  if (!rawDate) return 'No date';
+  return new Date(rawDate).toLocaleDateString('en-CA');
+};
+
+const complaintStatusConfig = {
+  pending: {
+    label: 'Pending',
+    tone: 'bg-[#f7ddd7] text-[#a6483b]'
+  },
+  in_progress: {
+    label: 'In Progress',
+    tone: 'bg-[#f7ddd7] text-[#a6483b]'
+  },
+  resolved: {
+    label: 'Resolved',
+    tone: 'bg-[#dceadf] text-[#2e7b49]'
+  }
+};
+
+const timelineEventTone = {
+  maintenance: 'bg-[#c17b1d]',
+  purchase: 'bg-[#2f855a]',
+  complaint: 'bg-[#9d2235]'
+};
+
 export default function StudentPage({ session, onLogout }) {
   const [labs, setLabs] = useState([]);
   const [selectedLab, setSelectedLab] = useState('');
@@ -69,7 +95,6 @@ export default function StudentPage({ session, onLogout }) {
     loadAssets();
   }, [selectedLab, search]);
 
-  const selectedLabel = useMemo(() => (selectedAsset ? `${selectedAsset.system_id} (${selectedAsset.status})` : 'Select a PC node'), [selectedAsset]);
   const selectedLabMeta = useMemo(() => labs.find((l) => l.lab === selectedLab), [labs, selectedLab]);
 
   const panelContent = useMemo(() => {
@@ -79,17 +104,31 @@ export default function StudentPage({ session, onLogout }) {
       }
 
       return (
-        <div className="space-y-2">
+        <div>
+          <h3 className="mb-4 text-[22px] font-semibold tracking-tight text-[#1f1417]">My Submitted Complaints</h3>
+          <div className="space-y-4">
           {myComplaints.map((item) => (
-            <div key={item.id} className="rounded-xl border border-[#9d2235]/10 bg-[#f8f3f4] p-3">
-              <div className="mb-1 flex items-center justify-between">
-                <p className="font-mono text-xs text-gray-700">{item.assets?.system_id || 'Unknown System'}</p>
-                <span className="rounded-full bg-white px-2 py-0.5 text-[10px] uppercase text-gray-600">{item.status}</span>
+            <div
+              key={item.id}
+              className="rounded-2xl border border-[#ded8d6] border-l-[3px] border-l-[#ad2240] bg-[#f1edeb] px-4 py-3"
+            >
+              <div className="mb-1.5 flex items-start justify-between gap-2">
+                <p className="font-mono text-[16px] font-semibold leading-none tracking-tight text-[#17131a]">
+                  {item.assets?.system_id || 'Unknown System'}
+                </p>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-tight ${complaintStatusConfig[item.status]?.tone || 'bg-[#ebebeb] text-[#555]'}`}
+                >
+                  {complaintStatusConfig[item.status]?.label || item.status}
+                </span>
               </div>
-              <p className="text-sm text-gray-700">{item.description}</p>
-              <p className="mt-1 text-xs text-gray-500">Priority: {item.priority}</p>
+              <p className="mt-2 text-[14px] leading-snug text-[#575061]">{item.description}</p>
+              <p className="mt-2 text-[12px] text-[#958e9c]">
+                {formatComplaintDate(item.created_at)} · Priority: <span className="font-semibold text-[#8f2f45]">{item.priority || 'Medium'}</span>
+              </p>
             </div>
           ))}
+          </div>
         </div>
       );
     }
@@ -100,14 +139,26 @@ export default function StudentPage({ session, onLogout }) {
       }
 
       return (
-        <div className="space-y-3">
-          {history.map((item) => (
-            <div key={item.id} className="border-l-2 border-accent/30 pl-3 text-sm">
-              <p className="font-medium">{item.event_type}</p>
-              <p className="text-gray-600">{item.details}</p>
-              <p className="text-xs text-gray-500">{item.event_date}</p>
-            </div>
-          ))}
+        <div>
+          <h3 className="mb-5 text-[26px] font-medium tracking-tight text-[#1f1417]">Timeline - {selectedAsset.system_id}</h3>
+          <div className="space-y-1">
+            {history.map((item, index) => {
+              const normalized = (item.event_type || '').toLowerCase();
+              const tone = Object.keys(timelineEventTone).find((key) => normalized.includes(key));
+
+              return (
+                <div key={item.id} className="relative pl-6">
+                  <span className={`absolute left-0 top-2.5 h-2.5 w-2.5 rounded-full ${timelineEventTone[tone] || 'bg-[#8a8290]'}`} />
+                  {index !== history.length - 1 && <span className="absolute left-[4px] top-5 h-[calc(100%-4px)] w-px bg-[#d9d3d0]" />}
+                  <div className="pb-5">
+                    <p className="text-[16px] font-semibold text-[#18131e]">{item.event_type}</p>
+                    <p className="mt-0.5 text-[14px] leading-snug text-[#5b5564]">{item.details}</p>
+                    <p className="mt-1 text-[12px] text-[#9b94a1]">{formatComplaintDate(item.event_date)}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
           {!history.length && <p className="text-sm text-gray-500">No timeline events yet.</p>}
         </div>
       );
@@ -263,16 +314,35 @@ export default function StudentPage({ session, onLogout }) {
 
           <aside className="flex h-full flex-col bg-white">
             <div className="grid grid-cols-3 border-b border-[#9d2235]/10">
-              <button onClick={() => setPanelTab('details')} className={`px-2 py-3 text-xs ${panelTab === 'details' ? 'border-b-2 border-accent text-accent' : 'text-gray-500'}`}>PC Details</button>
-              <button onClick={() => setPanelTab('timeline')} className={`px-2 py-3 text-xs ${panelTab === 'timeline' ? 'border-b-2 border-accent text-accent' : 'text-gray-500'}`}>Timeline</button>
-              <button onClick={() => setPanelTab('complaints')} className={`px-2 py-3 text-xs ${panelTab === 'complaints' ? 'border-b-2 border-accent text-accent' : 'text-gray-500'}`}>
-                My Complaints <span className="ml-1 rounded-full bg-accent px-1.5 py-0.5 text-[10px] text-white">{myComplaints.length}</span>
+              <button
+                onClick={() => setPanelTab('details')}
+                className={`px-2 py-3 text-[12px] ${panelTab === 'details' ? 'border-b-2 border-accent bg-[#ebe7e2] font-medium text-[#161017]' : 'text-[#5f5663]'}`}
+              >
+                PC Details
+              </button>
+              <button
+                onClick={() => setPanelTab('timeline')}
+                className={`px-2 py-3 text-[12px] ${panelTab === 'timeline' ? 'border-b-2 border-accent bg-[#ebe7e2] font-medium text-[#161017]' : 'text-[#5f5663]'}`}
+              >
+                Timeline
+              </button>
+              <button
+                onClick={() => setPanelTab('complaints')}
+                className={`px-2 py-3 text-[12px] ${panelTab === 'complaints' ? 'border-b-2 border-accent bg-[#ebe7e2] font-medium text-accent' : 'text-[#5f5663]'}`}
+              >
+                <span className="flex items-center justify-center gap-1">
+                  My Complaints
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
+                    {myComplaints.length}
+                  </span>
+                </span>
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4">
-              <h3 className="mb-2 text-sm font-semibold">{panelTab === 'details' ? 'Selected Asset' : panelTab === 'timeline' ? 'Asset History' : 'Your Tickets'}</h3>
-              {panelTab !== 'details' && <p className="mb-3 font-mono text-[11px] text-gray-500">{selectedLabel}</p>}
+              {panelTab === 'details' && (
+                <h3 className="mb-2 text-sm font-semibold">Selected Asset</h3>
+              )}
               {panelContent}
             </div>
           </aside>
