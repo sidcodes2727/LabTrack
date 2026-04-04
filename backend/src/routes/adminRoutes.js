@@ -80,15 +80,18 @@ router.patch('/kanban/:id', async (req, res, next) => {
     if (error) throw error;
 
     if (status === 'resolved') {
-      const { count: unresolvedCount, error: unresolvedError } = await supabase
+      const { data: unresolvedComplaints, error: unresolvedError } = await supabase
         .from('complaints')
-        .select('*', { count: 'exact', head: true })
+        .select('status')
         .eq('asset_id', currentComplaint.asset_id)
         .in('status', ['pending', 'in_progress']);
 
       if (unresolvedError) throw unresolvedError;
 
-      const nextAssetStatus = unresolvedCount > 0 ? 'faulty' : 'working';
+      const hasInProgress = (unresolvedComplaints || []).some((item) => item.status === 'in_progress');
+      const hasPending = (unresolvedComplaints || []).some((item) => item.status === 'pending');
+
+      const nextAssetStatus = hasInProgress ? 'maintenance' : hasPending ? 'faulty' : 'working';
       const { error: assetStatusError } = await supabase
         .from('assets')
         .update({ status: nextAssetStatus })
@@ -136,9 +139,10 @@ router.patch('/kanban/:id', async (req, res, next) => {
     });
 
     if (status !== 'resolved') {
+      const nextAssetStatus = status === 'in_progress' ? 'maintenance' : 'faulty';
       const { error: assetStatusError } = await supabase
         .from('assets')
-        .update({ status: 'faulty' })
+        .update({ status: nextAssetStatus })
         .eq('id', currentComplaint.asset_id);
 
       if (assetStatusError) throw assetStatusError;
