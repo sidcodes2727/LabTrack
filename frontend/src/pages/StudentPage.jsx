@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { Bell, LogOut, Search } from 'lucide-react';
+import { LogOut, Search } from 'lucide-react';
 import { api } from '../lib/api';
 import LabVisualizer from '../components/LabVisualizer';
 import ComplaintModal from '../components/ComplaintModal';
 import Skeleton from '../components/Skeleton';
+import NotificationBell from '../components/NotificationBell';
+import { getSocket } from '../lib/socket';
 
 const formatComplaintDate = (rawDate) => {
   if (!rawDate) return 'No date';
@@ -86,6 +88,19 @@ export default function StudentPage({ session, onLogout }) {
     setHistory(data.history || []);
   };
 
+  const refreshSelectedDetail = async () => {
+    if (!selectedAsset?.system_id) return;
+    try {
+      const { data } = await api.get(`/assets/detail/${selectedAsset.system_id}`);
+      setHistory(data.history || []);
+      if (data.asset) {
+        setSelectedAsset((prev) => ({ ...(prev || {}), ...data.asset }));
+      }
+    } catch {
+      // Keep current view if refresh fails.
+    }
+  };
+
   useEffect(() => {
     loadLabs();
     loadComplaints();
@@ -94,6 +109,24 @@ export default function StudentPage({ session, onLogout }) {
   useEffect(() => {
     loadAssets();
   }, [selectedLab, search]);
+
+  useEffect(() => {
+    const socket = getSocket(session?.token);
+    if (!socket) return undefined;
+
+    const handleUpdate = (payload) => {
+      if (payload?.userId && payload.userId !== session.user.id) return;
+      loadComplaints();
+      loadAssets();
+      refreshSelectedDetail();
+    };
+
+    socket.on('labtrack:update', handleUpdate);
+
+    return () => {
+      socket.off('labtrack:update', handleUpdate);
+    };
+  }, [session?.token, session?.user?.id, selectedAsset?.system_id, selectedLab, search]);
 
   const selectedLabMeta = useMemo(() => labs.find((l) => l.lab === selectedLab), [labs, selectedLab]);
 
@@ -236,10 +269,7 @@ export default function StudentPage({ session, onLogout }) {
           <span className="text-sm text-gray-500">Student Portal</span>
         </div>
         <div className="flex items-center gap-2">
-          <button className="relative rounded-lg border border-[#9d2235]/20 bg-white p-2 text-gray-600 hover:border-[#9d2235]/35">
-            <Bell size={16} />
-            <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-accent" />
-          </button>
+          <NotificationBell endpoint="/complaints/notifications" panelTitle="Student Notifications" />
           <div className="flex items-center gap-2 rounded-lg border border-[#9d2235]/15 bg-white px-2 py-1 text-xs text-gray-600">
             <span className="grid h-6 w-6 place-items-center rounded-full bg-[#9d2235]/10 font-semibold text-accent">
               {(session.user.name || 'S').charAt(0).toUpperCase()}

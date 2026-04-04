@@ -6,6 +6,7 @@ import PDFDocument from 'pdfkit';
 import { parse } from 'csv-parse/sync';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { supabase } from '../services/supabase.js';
+import { emitRoleUpdate, emitUserUpdate } from '../services/socket.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -47,7 +48,7 @@ router.get('/kanban', async (_req, res, next) => {
   try {
     const { data, error } = await supabase
       .from('complaints')
-      .select('*, assets(system_id, lab, section), users(name)')
+      .select('*, assets(system_id, lab, section), users(name, email)')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -63,7 +64,7 @@ router.patch('/kanban/:id', async (req, res, next) => {
 
     const { data: currentComplaint, error: currentComplaintError } = await supabase
       .from('complaints')
-      .select('id, asset_id')
+      .select('id, asset_id, user_id, priority, description, assets(system_id, lab, section), users(name, email)')
       .eq('id', req.params.id)
       .single();
 
@@ -98,9 +99,43 @@ router.patch('/kanban/:id', async (req, res, next) => {
       await supabase.from('history').insert({
         asset_id: currentComplaint.asset_id,
         event_type: 'Complaint Resolved',
-        details: `Complaint ${req.params.id} moved to resolved`
+        details: `Issue on ${currentComplaint.assets?.system_id || currentComplaint.asset_id} resolved by admin (${currentComplaint.users?.name || 'Unknown Student'}).`
       });
     } else {
+      await supabase.from('history').insert({
+        asset_id: currentComplaint.asset_id,
+        event_type: 'Complaint Status Updated',
+        details: `Complaint for ${currentComplaint.assets?.system_id || currentComplaint.asset_id} moved to ${status.replace('_', ' ')}.`
+      });
+    }
+
+    const systemId = currentComplaint.assets?.system_id || currentComplaint.asset_id;
+    if (status === 'resolved') {
+      await supabase.from('notifications').insert({
+        title: 'Complaint resolved',
+        message: `Your ${systemId} complaint has been resolved. Priority: ${currentComplaint.priority}.`,
+        role_target: 'student',
+        user_id: currentComplaint.user_id
+      });
+    }
+
+    emitRoleUpdate('admin', {
+      type: 'complaint_updated',
+      complaintId: req.params.id,
+      assetId: currentComplaint.asset_id,
+      userId: currentComplaint.user_id,
+      status
+    });
+
+    emitUserUpdate(currentComplaint.user_id, {
+      type: status === 'resolved' ? 'complaint_resolved' : 'complaint_updated',
+      complaintId: req.params.id,
+      assetId: currentComplaint.asset_id,
+      userId: currentComplaint.user_id,
+      status
+    });
+
+    if (status !== 'resolved') {
       const { error: assetStatusError } = await supabase
         .from('assets')
         .update({ status: 'faulty' })
@@ -108,12 +143,6 @@ router.patch('/kanban/:id', async (req, res, next) => {
 
       if (assetStatusError) throw assetStatusError;
     }
-
-    await supabase.from('notifications').insert({
-      title: 'Complaint status updated',
-      message: `Complaint ${req.params.id} moved to ${status}`,
-      role_target: 'student'
-    });
 
     return res.json(data);
   } catch (error) {
@@ -126,6 +155,7 @@ router.get('/notifications', async (_req, res, next) => {
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
+      .or('role_target.eq.admin,role_target.is.null')
       .order('created_at', { ascending: false })
       .limit(20);
 

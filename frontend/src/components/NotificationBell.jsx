@@ -2,22 +2,44 @@ import { useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../lib/api';
+import { getSocket } from '../lib/socket';
+import { getStoredSession } from '../lib/auth';
 
-export default function NotificationBell() {
+const formatTime = (value) => {
+  if (!value) return '';
+  return new Date(value).toLocaleString();
+};
+
+export default function NotificationBell({ endpoint = '/admin/notifications', panelTitle = 'Notifications' }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const { data } = await api.get('/admin/notifications');
+        const { data } = await api.get(endpoint);
         setItems(data || []);
       } catch {
         setItems([]);
       }
     };
+
     load();
-  }, []);
+
+    const token = getStoredSession()?.token;
+    const socket = getSocket(token);
+    if (!socket) return undefined;
+
+    const handleUpdate = () => {
+      load();
+    };
+
+    socket.on('labtrack:update', handleUpdate);
+
+    return () => {
+      socket.off('labtrack:update', handleUpdate);
+    };
+  }, [endpoint]);
 
   return (
     <div className="relative">
@@ -33,12 +55,13 @@ export default function NotificationBell() {
             exit={{ opacity: 0, y: -6 }}
             className="absolute right-0 z-30 mt-2 w-80 rounded-2xl border border-[#9d2235]/12 bg-white p-3 shadow-glass"
           >
-            <h4 className="mb-2 text-sm font-semibold">Notifications</h4>
+            <h4 className="mb-2 text-sm font-semibold">{panelTitle}</h4>
             <div className="max-h-72 space-y-2 overflow-y-auto">
               {items.map((item) => (
-                <div key={item.id} className="rounded-xl bg-gray-50 p-2 text-xs">
-                  <div className="font-semibold text-ink">{item.title}</div>
+                <div key={item.id} className="rounded-xl border border-[#9d2235]/10 bg-[#faf7f5] p-2.5 text-xs">
+                  <div className="font-semibold text-[#181019]">{item.title}</div>
                   <div className="text-gray-600">{item.message}</div>
+                  <div className="mt-1 text-[10px] text-gray-500">{formatTime(item.created_at)}</div>
                 </div>
               ))}
               {!items.length && <p className="text-xs text-gray-500">No notifications yet.</p>}

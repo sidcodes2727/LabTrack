@@ -3,6 +3,7 @@ import multer from 'multer';
 import { authenticate } from '../middleware/auth.js';
 import { supabase } from '../services/supabase.js';
 import { classifyComplaint } from '../services/aiService.js';
+import { emitRoleUpdate, emitUserUpdate } from '../services/socket.js';
 
 const router = express.Router();
 
@@ -35,6 +36,28 @@ router.get('/', authenticate, async (req, res, next) => {
     }
 
     return res.json(data);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/notifications', authenticate, async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    const filtered = (data || []).filter((item) => {
+      const roleMatched = !item.role_target || item.role_target === req.user.role;
+      const userMatched = !item.user_id || item.user_id === req.user.id;
+      return roleMatched && userMatched;
+    });
+
+    return res.json(filtered.slice(0, 25));
   } catch (error) {
     return next(error);
   }
@@ -94,16 +117,34 @@ router.post('/', authenticate, upload.single('image'), async (req, res, next) =>
 
     if (assetStatusError) throw assetStatusError;
 
+    const { data: assetData } = await supabase
+      .from('assets')
+      .select('system_id, lab, section')
+      .eq('id', assetId)
+      .maybeSingle();
+
+    const systemLabel = assetData?.system_id || assetId;
+    const locationLabel = assetData ? `${assetData.lab}/${assetData.section}` : 'Unknown Lab';
+
     await supabase.from('history').insert({
       asset_id: assetId,
       event_type: 'Complaint Logged',
-      details: `Complaint ${complaint.id} created with priority ${finalPriority}`
+      details: `${req.user.name} reported issue on ${systemLabel}: ${description.slice(0, 120)}${description.length > 120 ? '...' : ''} (Priority: ${finalPriority})`
     });
 
+    const adminMessage = `${req.user.name} (${req.user.email}) reported ${systemLabel} in ${locationLabel}. Priority: ${finalPriority}.`;
+
     await supabase.from('notifications').insert({
-      title: 'New complaint created',
-      message: `Complaint ${complaint.id} created with priority ${finalPriority}`,
+      title: 'New complaint submitted',
+      message: adminMessage,
       role_target: 'admin'
+    });
+
+    emitRoleUpdate('admin', {
+      type: 'complaint_created',
+      complaintId: complaint.id,
+      assetId,
+      userId: req.user.id
     });
 
     return res.status(201).json(complaint);

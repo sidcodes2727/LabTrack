@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import DashboardCharts from '../components/DashboardCharts';
 import KanbanBoard from '../components/KanbanBoard';
 import NotificationBell from '../components/NotificationBell';
+import { getSocket } from '../lib/socket';
 
 export default function AdminPage({ session, onLogout }) {
   const [dashboard, setDashboard] = useState({ totals: {}, complaintsPerLab: [], byStatus: [] });
@@ -33,6 +34,21 @@ export default function AdminPage({ session, onLogout }) {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    const socket = getSocket(session?.token);
+    if (!socket) return undefined;
+
+    const handleUpdate = () => {
+      load();
+    };
+
+    socket.on('labtrack:update', handleUpdate);
+
+    return () => {
+      socket.off('labtrack:update', handleUpdate);
+    };
+  }, [session?.token]);
 
   const handleImport = async (e) => {
     const file = e.target.files?.[0];
@@ -92,7 +108,7 @@ export default function AdminPage({ session, onLogout }) {
           <span className="text-sm text-gray-500">Admin Control Center</span>
         </div>
         <div className="flex items-center gap-2">
-          <NotificationBell />
+          <NotificationBell endpoint="/admin/notifications" panelTitle="Admin Notifications" />
           <div className="hidden items-center gap-2 rounded-lg border border-[#9d2235]/15 bg-white px-2 py-1 text-xs text-gray-600 md:flex">
             <span className="grid h-6 w-6 place-items-center rounded-full bg-[#9d2235]/10 font-semibold text-accent">
               {(session.user.name || 'A').charAt(0).toUpperCase()}

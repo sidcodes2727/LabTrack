@@ -1,13 +1,16 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import http from 'http';
 import authRoutes from './routes/authRoutes.js';
 import assetRoutes from './routes/assetRoutes.js';
 import complaintRoutes from './routes/complaintRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import { initSocket } from './services/socket.js';
 
 const app = express();
 const port = process.env.PORT || 4000;
+const server = http.createServer(app);
 
 app.use(
   cors({
@@ -33,6 +36,8 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ message: err.message || 'Internal server error' });
 });
 
-app.listen(port, () => {
+initSocket(server);
+
+server.listen(port, () => {
   console.log(`LabTrack backend listening on port ${port}`);
 });

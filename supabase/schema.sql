@@ -71,15 +71,20 @@ create table if not exists notifications (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   message text not null,
+  user_id uuid references users(id) on delete cascade,
   role_target user_role,
   is_read boolean default false,
   created_at timestamptz default now()
 );
 
+alter table notifications
+  add column if not exists user_id uuid references users(id) on delete cascade;
+
 create index if not exists idx_assets_lab_section on assets(lab, section);
 create index if not exists idx_assets_system_original on assets(system_id, original_id);
 create index if not exists idx_complaints_status_priority on complaints(status, priority);
 create index if not exists idx_complaints_created_at on complaints(created_at);
+create index if not exists idx_notifications_user_role_created on notifications(user_id, role_target, created_at desc);
 
 insert into storage.buckets (id, name, public)
 values ('complaint-images', 'complaint-images', true)

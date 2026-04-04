@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { DndContext, DragOverlay, PointerSensor, closestCorners, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
@@ -20,6 +20,7 @@ const priorityColor = {
 export default function KanbanBoard({ items, onRefresh }) {
   const [boardItems, setBoardItems] = useState(items || []);
   const [activeId, setActiveId] = useState(null);
+  const [detailCard, setDetailCard] = useState(null);
 
   useEffect(() => {
     setBoardItems(items || []);
@@ -100,18 +101,20 @@ export default function KanbanBoard({ items, onRefresh }) {
     >
       <div className="grid gap-4 md:grid-cols-3">
         {columns.map((col) => (
-          <KanbanColumn key={col.key} id={col.key} title={col.title} cards={grouped[col.key]} />
+          <KanbanColumn key={col.key} id={col.key} title={col.title} cards={grouped[col.key]} onOpenDetail={setDetailCard} />
         ))}
       </div>
 
       <DragOverlay>
         {activeCard ? <KanbanCard card={activeCard} dragging /> : null}
       </DragOverlay>
+
+      <ComplaintDetailModal card={detailCard} onClose={() => setDetailCard(null)} />
     </DndContext>
   );
 }
 
-function KanbanColumn({ id, title, cards }) {
+function KanbanColumn({ id, title, cards, onOpenDetail }) {
   const { isOver, setNodeRef } = useDroppable({ id });
 
   return (
@@ -125,15 +128,16 @@ function KanbanColumn({ id, title, cards }) {
       <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-600">{title}</h4>
       <div className="space-y-3">
         {cards.map((card) => (
-          <KanbanCard key={card.id} card={card} />
+          <KanbanCard key={card.id} card={card} onOpenDetail={onOpenDetail} />
         ))}
       </div>
     </motion.div>
   );
 }
 
-function KanbanCard({ card, dragging = false }) {
+function KanbanCard({ card, dragging = false, onOpenDetail }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: card.id });
+  const [showPreview, setShowPreview] = useState(false);
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
 
   return (
@@ -145,6 +149,9 @@ function KanbanCard({ card, dragging = false }) {
       className={`rounded-2xl border border-gray-100 bg-white p-3 shadow-sm ${
         isDragging || dragging ? 'cursor-grabbing opacity-90 shadow-lg' : 'cursor-grab'
       }`}
+      onMouseEnter={() => setShowPreview(true)}
+      onMouseLeave={() => setShowPreview(false)}
+      onClick={() => onOpenDetail?.(card)}
       {...listeners}
       {...attributes}
     >
@@ -154,8 +161,73 @@ function KanbanCard({ card, dragging = false }) {
           {card.priority}
         </span>
       </div>
-      <p className="text-sm text-gray-700">{card.description}</p>
+      <p className="line-clamp-2 text-sm text-gray-700">
+        {card.description}
+      </p>
       <p className="mt-2 text-xs text-gray-500">{card.assets?.lab} / {card.assets?.section}</p>
+
+      {showPreview && (
+        <div className="mt-3 rounded-xl border border-[#9d2235]/12 bg-[#fbf7f5] p-2 text-xs">
+          <p className="font-semibold text-[#181019]">{card.users?.name || 'Unknown student'}</p>
+          <p className="text-gray-600">{card.users?.email || 'No email available'}</p>
+        </div>
+      )}
     </motion.div>
+  );
+}
+
+function ComplaintDetailModal({ card, onClose }) {
+  return (
+    <AnimatePresence>
+      {card && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ y: 14, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 14, opacity: 0 }}
+            className="w-full max-w-xl rounded-3xl border border-[#9d2235]/15 bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-start justify-between gap-4">
+              <div>
+                <p className="font-mono text-sm text-[#5d5668]">{card.assets?.system_id || 'Unknown System'}</p>
+                <h4 className="text-lg font-semibold text-[#17121b]">Complaint Details</h4>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-[#9d2235]/20 px-2.5 py-1 text-xs text-[#4d4554] hover:bg-[#faf4f5]"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mb-3 rounded-xl border border-[#9d2235]/10 bg-[#fbf7f5] p-3 text-xs">
+              <p className="font-semibold text-[#181019]">{card.users?.name || 'Unknown student'}</p>
+              <p className="text-gray-600">{card.users?.email || 'No email available'}</p>
+              <p className="mt-1 text-gray-500">{card.assets?.lab} / {card.assets?.section}</p>
+            </div>
+
+            <p className="text-sm leading-relaxed text-[#2d2430]">{card.description}</p>
+
+            {card.image_url ? (
+              <img
+                src={card.image_url}
+                alt="Complaint attachment"
+                className="mt-3 h-64 w-full rounded-xl border border-[#9d2235]/10 object-cover"
+              />
+            ) : (
+              <p className="mt-3 text-xs text-gray-500">No image attached</p>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
