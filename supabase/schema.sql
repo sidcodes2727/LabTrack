@@ -84,3 +84,32 @@ create index if not exists idx_complaints_created_at on complaints(created_at);
 insert into storage.buckets (id, name, public)
 values ('complaint-images', 'complaint-images', true)
 on conflict (id) do nothing;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and policyname = 'Complaint images are publicly readable'
+  ) then
+    create policy "Complaint images are publicly readable"
+      on storage.objects
+      for select
+      using (bucket_id = 'complaint-images');
+  end if;
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and policyname = 'Complaint images can be uploaded'
+  ) then
+    create policy "Complaint images can be uploaded"
+      on storage.objects
+      for insert
+      with check (bucket_id = 'complaint-images');
+  end if;
+end $$;
