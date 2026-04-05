@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { ShieldCheck, Lock, Mail, User, Eye, EyeOff, CircleCheckBig } from 'lucide-react';
 import { api } from '../lib/api';
 
-const TOTAL_LAB_SEATS = 49;
+const TOTAL_LAB_SEATS = 30;
 
 const cycleSeatState = (state) => {
   if (state === 'normal') return 'faulty';
@@ -25,8 +25,8 @@ export default function LoginPage({ onAuth }) {
   const [authSuccess, setAuthSuccess] = useState(false);
   const [labSeatStates, setLabSeatStates] = useState(() =>
     Array.from({ length: TOTAL_LAB_SEATS }, (_, i) => {
-      if (i === 1 || i === 16 || i === 32) return 'faulty';
-      if (i === 6 || i === 23 || i === 44) return 'maintenance';
+      if (i === 1 || i === 9 || i === 18) return 'faulty';
+      if (i === 4 || i === 13 || i === 22) return 'maintenance';
       return 'normal';
     })
   );
@@ -131,18 +131,25 @@ export default function LoginPage({ onAuth }) {
 
             <div className="relative z-10 mt-6 flex min-h-[390px] flex-1 flex-col rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
               <div className="mb-3 flex items-center justify-between text-[11px] uppercase tracking-wider text-white/70">
-                <span>Lab 2 - Live View</span>
+                <span>Lab - Live View</span>
                 <span className="rounded-full bg-emerald-500/30 px-2 py-0.5 text-[10px] text-emerald-200">Active</span>
               </div>
 
-              <div className="grid grid-cols-7 gap-1.5">
+              <div className="grid grid-cols-6 gap-3.5">
                 {labSeatStates.map((state, i) => {
-                  const marker =
+                  const monitorTone =
                     state === 'faulty'
-                      ? 'bg-red-400/80 ring-1 ring-red-200/70'
+                      ? 'bg-red-400/80 border-red-200/80 shadow-[0_0_0_1px_rgba(254,202,202,0.35)]'
                       : state === 'maintenance'
-                        ? 'bg-amber-300/80 ring-1 ring-amber-100/70'
-                        : 'bg-white/30 hover:bg-white/45';
+                        ? 'bg-amber-300/80 border-amber-100/80 shadow-[0_0_0_1px_rgba(254,243,199,0.35)]'
+                        : 'bg-white/30 border-white/40 hover:bg-white/45';
+
+                  const towerTone =
+                    state === 'faulty'
+                      ? 'bg-red-300/70 border-red-100/80'
+                      : state === 'maintenance'
+                        ? 'bg-amber-200/70 border-amber-100/80'
+                        : 'bg-white/20 border-white/40';
 
                   return (
                     <button
@@ -150,8 +157,21 @@ export default function LoginPage({ onAuth }) {
                       type="button"
                       onClick={() => handleSeatClick(i)}
                       aria-label={`Seat ${i + 1} status ${state}`}
-                      className={`aspect-square rounded-[4px] transition ${marker}`}
-                    />
+                      className="group relative h-10 w-full transition hover:-translate-y-[1px]"
+                    >
+                      <span className="absolute inset-x-0 bottom-0 flex items-end gap-[2px]">
+                        <span className="relative block h-[22px] flex-1">
+                          <span className={`absolute inset-0 rounded-[3px] border transition ${monitorTone}`} />
+                          <span className="absolute left-[3px] top-[3px] h-[3px] w-[3px] rounded-full bg-white/70" />
+                          <span className="absolute left-[35%] -bottom-[3px] h-[3px] w-[30%] rounded-full bg-white/55" />
+                          <span className="absolute left-[22%] -bottom-[6px] h-[3px] w-[56%] rounded-full bg-white/35" />
+                        </span>
+
+                        <span className={`relative mb-[1px] block h-[24px] w-[7px] rounded-[2px] border ${towerTone}`}>
+                          <span className="absolute bottom-[2px] left-1/2 h-[3px] w-[3px] -translate-x-1/2 rounded-full bg-white/70" />
+                        </span>
+                      </span>
+                    </button>
                   );
                 })}
               </div>
