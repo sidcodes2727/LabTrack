@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { LogOut, Search } from 'lucide-react';
 import { api } from '../lib/api';
@@ -262,7 +262,12 @@ export default function StudentPage({ session, onLogout }) {
     <div className="relative min-h-screen overflow-hidden bg-[#f5f0eb]">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(157,34,53,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(157,34,53,0.045)_1px,transparent_1px)] bg-[size:38px_38px]" />
 
-      <header className="relative z-20 flex h-14 items-center justify-between border-b border-[#9d2235]/10 bg-white/95 px-5 shadow-sm">
+      <motion.header
+        initial={{ y: -12, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="relative z-20 flex h-14 items-center justify-between border-b border-[#9d2235]/10 bg-white/95 px-5 shadow-sm"
+      >
         <div className="flex items-center gap-3">
           <div className="text-lg font-semibold tracking-tight">Lab <span className="text-accent">Track</span></div>
           <span className="h-5 w-px bg-[#9d2235]/15" />
@@ -280,19 +285,34 @@ export default function StudentPage({ session, onLogout }) {
             <LogOut size={14} /> Logout
           </button>
         </div>
-      </header>
+      </motion.header>
 
       {loading ? (
-        <div className="p-6">
+        <motion.div
+          initial={{ opacity: 0.4 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.35 }}
+          className="p-6"
+        >
           <Skeleton className="h-16" />
           <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_320px]">
             <Skeleton className="h-[520px]" />
             <Skeleton className="h-[520px]" />
           </div>
-        </div>
+        </motion.div>
       ) : (
-        <div className="relative z-10 grid h-[calc(100vh-56px)] lg:grid-cols-[1fr_320px]">
-          <section className="overflow-hidden border-r border-[#9d2235]/10">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+          className="relative z-10 grid h-[calc(100vh-56px)] lg:grid-cols-[1fr_320px]"
+        >
+          <motion.section
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            className="overflow-hidden border-r border-[#9d2235]/10"
+          >
             <div className="flex overflow-x-auto border-b border-[#9d2235]/10 bg-white px-4">
               {labs.map((lab) => {
                 const faultPct = lab.total ? Math.round((lab.faulty / lab.total) * 100) : 0;
@@ -340,9 +360,14 @@ export default function StudentPage({ session, onLogout }) {
                 <LabVisualizer assets={assets} onSelect={loadDetail} selectedId={selectedAsset?.id} />
               </div>
             </div>
-          </section>
+          </motion.section>
 
-          <aside className="flex h-full flex-col bg-white">
+          <motion.aside
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut', delay: 0.05 }}
+            className="flex h-full flex-col bg-white"
+          >
             <div className="grid grid-cols-3 border-b border-[#9d2235]/10">
               <button
                 onClick={() => setPanelTab('details')}
@@ -370,13 +395,23 @@ export default function StudentPage({ session, onLogout }) {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4">
-              {panelTab === 'details' && (
-                <h3 className="mb-2 text-sm font-semibold">Selected Asset</h3>
-              )}
-              {panelContent}
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={`${panelTab}-${selectedAsset?.id || 'none'}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.22, ease: 'easeOut' }}
+                >
+                  {panelTab === 'details' && (
+                    <h3 className="mb-2 text-sm font-semibold">Selected Asset</h3>
+                  )}
+                  {panelContent}
+                </motion.div>
+              </AnimatePresence>
             </div>
-          </aside>
-        </div>
+          </motion.aside>
+        </motion.div>
       )}
 
       {selectedAsset && <ComplaintModal open={modalOpen} onClose={() => setModalOpen(false)} asset={selectedAsset} onDone={() => { loadAssets(); loadComplaints(); }} />}

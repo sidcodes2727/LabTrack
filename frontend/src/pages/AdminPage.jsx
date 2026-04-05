@@ -121,8 +121,18 @@ export default function AdminPage({ session, onLogout }) {
         </div>
       </motion.header>
 
-      <div className="relative z-10 p-6">
-      <section className="mb-4 grid gap-3 sm:grid-cols-3">
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
+        className="relative z-10 p-6"
+      >
+      <motion.section
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="mb-4 grid gap-3 sm:grid-cols-3"
+      >
         <div className="rounded-3xl border border-[#9d2235]/10 bg-white p-4 shadow-glass">
           <p className="text-xs uppercase tracking-wide text-gray-500">Total Assets</p>
           <p className="font-mono text-2xl">{dashboard.totals.assets || 0}</p>
@@ -135,13 +145,23 @@ export default function AdminPage({ session, onLogout }) {
           <p className="text-xs uppercase tracking-wide text-gray-500">Open Complaints</p>
           <p className="font-mono text-2xl">{cards.filter((c) => c.status !== 'resolved').length}</p>
         </div>
-      </section>
+      </motion.section>
 
-      <section className="mb-4">
+      <motion.section
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.32, ease: 'easeOut', delay: 0.06 }}
+        className="mb-4"
+      >
         <DashboardCharts data={dashboard} />
-      </section>
+      </motion.section>
 
-      <section className="mb-4 rounded-3xl border border-[#9d2235]/10 bg-white/90 p-4 shadow-glass backdrop-blur-md">
+      <motion.section
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.34, ease: 'easeOut', delay: 0.12 }}
+        className="mb-4 rounded-3xl border border-[#9d2235]/10 bg-white/90 p-4 shadow-glass backdrop-blur-md"
+      >
         <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">Export and Import</div>
         <div className="mb-3 grid gap-2 md:grid-cols-6">
           <input
@@ -206,12 +226,16 @@ export default function AdminPage({ session, onLogout }) {
             <Download size={16} /> Export PDF
           </button>
         </div>
-      </section>
+      </motion.section>
 
-      <section>
+      <motion.section
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.34, ease: 'easeOut', delay: 0.18 }}
+      >
         <KanbanBoard items={cards} onRefresh={load} />
-      </section>
-      </div>
+      </motion.section>
+      </motion.div>
     </div>
   );
 }
