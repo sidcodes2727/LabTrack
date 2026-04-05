@@ -73,7 +73,9 @@ const audienceCards = [
     description: 'Students can quickly report faults and follow progress without guessing whether an issue is acknowledged.',
     points: ['One-click complaint filing', 'Real-time status updates', 'Clear machine-level history'],
     icon: User,
-    tone: 'bg-[#fdf5f6] border-[#9d2235]/18'
+    frameTone: 'border-[#8c3346] bg-[#3a2930]',
+    screenTone: 'bg-[#fdf5f6]',
+    cableTone: 'bg-[#b74d63]'
   },
   {
     title: 'For Admin Teams',
@@ -81,7 +83,9 @@ const audienceCards = [
     description: 'Admins get a centralized control layer to prioritize repairs, coordinate action, and monitor SLAs.',
     points: ['Kanban-style complaint flow', 'Severity-aware escalation', 'Operational dashboard insights'],
     icon: ShieldCheck,
-    tone: 'bg-[#f5f8ff] border-[#315b8e]/18'
+    frameTone: 'border-[#3f5470] bg-[#2d3948]',
+    screenTone: 'bg-[#f5f8ff]',
+    cableTone: 'bg-[#49627f]'
   },
   {
     title: 'For Lab Management',
@@ -89,7 +93,9 @@ const audienceCards = [
     description: 'Management receives a longitudinal view of asset health to drive maintenance planning and budget decisions.',
     points: ['Fault trend tracking', 'Maintenance timeline records', 'Data-backed replacement planning'],
     icon: Gauge,
-    tone: 'bg-[#f5fbf7] border-[#3b7f57]/18'
+    frameTone: 'border-[#3f6a4e] bg-[#2d4736]',
+    screenTone: 'bg-[#f5fbf7]',
+    cableTone: 'bg-[#4f8a67]'
   }
 ];
 
@@ -306,7 +312,7 @@ export default function LandingPage({ session }) {
               className="mx-auto mt-8 w-full max-w-6xl"
             >
               <div className="rounded-[34px] border border-[#9d2235]/14 bg-[linear-gradient(135deg,#fff9f6_0%,#fff4f2_50%,#fff9f7_100%)] p-6 shadow-[0_26px_50px_rgba(104,45,57,0.14)] md:p-8">
-                <div className="grid gap-7 lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="grid gap-7 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
                   <div>
                     <motion.span
                       initial={{ opacity: 0, x: -10 }}
@@ -360,12 +366,29 @@ export default function LandingPage({ session }) {
                       </a>
                     </motion.div>
 
-                    <div className="mt-7 grid gap-3 sm:grid-cols-3">
+                    <div className="mt-7 grid gap-4 sm:grid-cols-3">
                       {heroStats.map((item) => (
-                        <div key={item.label} className="rounded-2xl border border-[#9d2235]/12 bg-white/80 px-4 py-3">
-                          <p className="text-xl font-semibold text-[#24171d]">{item.value}</p>
-                          <p className="mt-1 text-xs uppercase tracking-[0.08em] text-[#7a5c66]">{item.label}</p>
-                        </div>
+                        <motion.div
+                          key={item.label}
+                          whileHover={{ y: -3 }}
+                          transition={{ duration: 0.2 }}
+                          className="relative pt-4"
+                        >
+                          <span className="pointer-events-none absolute left-1/2 top-0 h-4 w-[2px] -translate-x-1/2 rounded-full bg-[#9d2235]/45" />
+                          <div className="rounded-[20px] border-4 border-[#4a353d] bg-[#2f242a] p-1.5 shadow-[0_12px_20px_rgba(58,35,43,0.2)]">
+                            <div className="rounded-[14px] border border-[#9d2235]/14 bg-white px-4 py-3">
+                              <div className="mb-2 flex items-center justify-between">
+                                <span className="h-2 w-2 rounded-full bg-[#5ec48a]" />
+                                <span className="h-2 w-2 rounded-full bg-[#d9a145]" />
+                                <span className="h-2 w-2 rounded-full bg-[#c74b63]" />
+                              </div>
+                              <p className="text-xl font-semibold text-[#24171d]">{item.value}</p>
+                              <p className="mt-1 text-xs uppercase tracking-[0.08em] text-[#7a5c66]">{item.label}</p>
+                            </div>
+                          </div>
+                          <div className="mx-auto mt-1 h-2 w-10 rounded-full bg-[#4a353d]" />
+                          <div className="mx-auto mt-1 h-1.5 w-16 rounded-full bg-[#5a434b]/70" />
+                        </motion.div>
                       ))}
                     </div>
                   </div>
@@ -374,7 +397,7 @@ export default function LandingPage({ session }) {
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.28 }}
-                    className="rounded-[26px] border border-[#9d2235]/14 bg-white/85 p-5"
+                    className="self-start rounded-[26px] border border-[#9d2235]/14 bg-white/85 p-5"
                   >
                     <div className="mb-4 flex items-center justify-between">
                       <p className="text-[11px] uppercase tracking-[0.16em] text-[#8f6670]">Operational Snapshot</p>
@@ -406,6 +429,47 @@ export default function LandingPage({ session }) {
 
                     <div className="mt-5 rounded-2xl border border-[#9d2235]/12 bg-[#fff7f6] p-3 text-sm text-[#5f5358]">
                       Complaints move from report to resolution with visible status transitions, making communication clear for students and actionable for administrators.
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      {[
+                        { id: 'L1-A', state: 'ok', tone: 'bg-[#4ca875]' },
+                        { id: 'L2-C', state: 'maint', tone: 'bg-[#d8a14a]' },
+                        { id: 'L3-F', state: 'fault', tone: 'bg-[#d34e63]' },
+                        { id: 'L4-B', state: 'ok', tone: 'bg-[#4ca875]' },
+                        { id: 'L5-D', state: 'ok', tone: 'bg-[#4ca875]' },
+                        { id: 'L6-H', state: 'fault', tone: 'bg-[#d34e63]' }
+                      ].map((node, index) => (
+                        <motion.div
+                          key={node.id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.35 + index * 0.04 }}
+                          className="rounded-xl border border-[#9d2235]/10 bg-white/90 p-2"
+                        >
+                          <p className="text-[11px] font-semibold text-[#3b2a31]">{node.id}</p>
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className={`h-2 w-2 rounded-full ${node.tone}`} />
+                            <span className="text-[10px] uppercase tracking-[0.08em] text-[#8f6670]">{node.state}</span>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-[#9d2235]/12 bg-white/95 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8f6670]">Recent Activity</p>
+                      <div className="mt-2 space-y-2">
+                        {[
+                          'Lab 2 • PC-16 moved to In Progress',
+                          'Lab 1 • New complaint filed for PC-04',
+                          'Lab 5 • PC-09 marked Resolved'
+                        ].map((line, idx) => (
+                          <div key={line} className="flex items-center gap-2 rounded-lg bg-[#faf4f4] px-2.5 py-2">
+                            <span className={`h-1.5 w-1.5 rounded-full ${idx === 2 ? 'bg-[#4ca875]' : idx === 1 ? 'bg-[#d34e63]' : 'bg-[#d8a14a]'}`} />
+                            <p className="text-xs text-[#5a4b53]">{line}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </motion.div>
                 </div>
@@ -505,27 +569,48 @@ export default function LandingPage({ session }) {
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true, amount: 0.35 }}
                       transition={{ delay: 0.15 + idx * 0.08 }}
-                      className={`rounded-3xl border p-5 shadow-[0_10px_24px_rgba(96,38,50,0.08)] ${card.tone}`}
+                      whileHover={{ y: -4 }}
+                      className="relative pt-6"
                     >
-                      <div className="mb-3 flex items-center gap-3">
-                        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/85 text-accent">
-                          <Icon size={18} />
-                        </div>
-                        <div>
-                          <p className="text-lg font-semibold text-[#2a1c22]">{card.title}</p>
-                          <p className="text-xs uppercase tracking-[0.08em] text-[#8f6670]">{card.subtitle}</p>
+                      <span className={`pointer-events-none absolute left-[18%] top-0 h-6 w-[2px] rounded-full ${card.cableTone}`} />
+                      <span className={`pointer-events-none absolute left-1/2 top-0 h-5 w-[2px] -translate-x-1/2 rounded-full ${card.cableTone}`} />
+                      <span className={`pointer-events-none absolute left-[82%] top-0 h-6 w-[2px] -translate-x-1/2 rounded-full ${card.cableTone}`} />
+
+                      <div className={`rounded-[30px] border-4 p-2 shadow-[0_14px_26px_rgba(59,31,38,0.24)] ${card.frameTone}`}>
+                        <div className={`rounded-[22px] border border-black/10 p-5 ${card.screenTone}`}>
+                          <div className="mb-3 flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full bg-[#5ec48a]" />
+                              <span className="h-2 w-2 rounded-full bg-[#d9a145]" />
+                              <span className="h-2 w-2 rounded-full bg-[#c74b63]" />
+                            </div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8b5f69]">Live Screen</p>
+                          </div>
+
+                          <div className="mb-3 flex items-center gap-3">
+                            <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/85 text-accent shadow-[0_5px_12px_rgba(130,49,67,0.15)]">
+                              <Icon size={18} />
+                            </div>
+                            <div>
+                              <p className="text-lg font-semibold text-[#2a1c22]">{card.title}</p>
+                              <p className="text-xs uppercase tracking-[0.08em] text-[#8f6670]">{card.subtitle}</p>
+                            </div>
+                          </div>
+
+                          <p className="text-sm leading-6 text-[#61545a]">{card.description}</p>
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {card.points.map((point) => (
+                              <span key={point} className="rounded-full border border-[#9d2235]/14 bg-white/80 px-2.5 py-1 text-xs text-[#654953]">
+                                {point}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
 
-                      <p className="text-sm leading-6 text-[#61545a]">{card.description}</p>
-
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {card.points.map((point) => (
-                          <span key={point} className="rounded-full border border-[#9d2235]/14 bg-white/80 px-2.5 py-1 text-xs text-[#654953]">
-                            {point}
-                          </span>
-                        ))}
-                      </div>
+                      <div className="mx-auto mt-1.5 h-2.5 w-14 rounded-full bg-[#4b363d]" />
+                      <div className="mx-auto mt-1 h-2 w-24 rounded-full bg-[#5d464f]/70" />
                     </motion.article>
                   );
                 })}
