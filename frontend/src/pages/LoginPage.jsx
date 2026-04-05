@@ -1,8 +1,16 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { ShieldCheck, Lock, Mail, User, Eye, EyeOff, Map, Bot, Ticket, BarChart3, CircleCheckBig } from 'lucide-react';
+import { ShieldCheck, Lock, Mail, User, Eye, EyeOff, CircleCheckBig } from 'lucide-react';
 import { api } from '../lib/api';
+
+const TOTAL_LAB_SEATS = 49;
+
+const cycleSeatState = (state) => {
+  if (state === 'normal') return 'faulty';
+  if (state === 'faulty') return 'maintenance';
+  return 'normal';
+};
 
 export default function LoginPage({ onAuth }) {
   const [mode, setMode] = useState('login');
@@ -14,11 +22,21 @@ export default function LoginPage({ onAuth }) {
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [authSuccess, setAuthSuccess] = useState(false);
+  const [labSeatStates, setLabSeatStates] = useState(() =>
+    Array.from({ length: TOTAL_LAB_SEATS }, (_, i) => {
+      if (i === 1 || i === 16 || i === 32) return 'faulty';
+      if (i === 6 || i === 23 || i === 44) return 'maintenance';
+      return 'normal';
+    })
+  );
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSeatClick = (seatIndex) => {
+    setLabSeatStates((prev) => prev.map((state, idx) => (idx === seatIndex ? cycleSeatState(state) : state)));
   };
 
   const handleSubmit = async (e) => {
@@ -97,7 +115,7 @@ export default function LoginPage({ onAuth }) {
         className="relative z-10 mx-auto max-w-4xl overflow-hidden rounded-3xl bg-white shadow-[0_30px_80px_rgba(34,19,19,0.16)]"
       >
         <div className="grid md:grid-cols-[1fr_1.05fr]">
-          <div className="relative hidden overflow-hidden bg-accent p-8 text-white md:flex md:flex-col md:justify-between">
+          <div className="relative hidden overflow-hidden bg-accent p-8 text-white md:flex md:flex-col">
             <div className="absolute -right-10 -top-10 h-44 w-44 rounded-full border-[22px] border-white/10" />
             <div className="absolute -bottom-14 -left-8 h-56 w-56 rounded-full border-[28px] border-white/5" />
 
@@ -111,30 +129,41 @@ export default function LoginPage({ onAuth }) {
               </p>
             </div>
 
-            <div className="relative z-10 rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+            <div className="relative z-10 mt-6 flex min-h-[390px] flex-1 flex-col rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
               <div className="mb-3 flex items-center justify-between text-[11px] uppercase tracking-wider text-white/70">
                 <span>Lab 2 - Live View</span>
                 <span className="rounded-full bg-emerald-500/30 px-2 py-0.5 text-[10px] text-emerald-200">Active</span>
               </div>
+
               <div className="grid grid-cols-7 gap-1.5">
-                {Array.from({ length: 28 }).map((_, i) => {
-                  const marker = i === 1 || i === 16 ? 'bg-red-400/70' : i === 6 || i === 23 ? 'bg-amber-300/70' : i === 21 ? 'bg-white/90 ring-2 ring-white/40' : 'bg-white/30';
-                  return <div key={i} className={`aspect-square rounded-[4px] ${marker}`} />;
+                {labSeatStates.map((state, i) => {
+                  const marker =
+                    state === 'faulty'
+                      ? 'bg-red-400/80 ring-1 ring-red-200/70'
+                      : state === 'maintenance'
+                        ? 'bg-amber-300/80 ring-1 ring-amber-100/70'
+                        : 'bg-white/30 hover:bg-white/45';
+
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => handleSeatClick(i)}
+                      aria-label={`Seat ${i + 1} status ${state}`}
+                      className={`aspect-square rounded-[4px] transition ${marker}`}
+                    />
+                  );
                 })}
               </div>
+
               <div className="mt-3 flex items-center gap-3 text-[10px] text-white/70">
                 <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Working</span>
                 <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-300" /> Faulty</span>
                 <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-200" /> Maintenance</span>
               </div>
-            </div>
 
-            <ul className="relative z-10 space-y-2 text-sm text-white/85">
-              <li className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded bg-white/15"><Map size={12} /></span>Interactive visual lab maps</li>
-              <li className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded bg-white/15"><Bot size={12} /></span>Gemini AI complaint triage</li>
-              <li className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded bg-white/15"><Ticket size={12} /></span>Kanban complaint board</li>
-              <li className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded bg-white/15"><BarChart3 size={12} /></span>Admin analytics dashboard</li>
-            </ul>
+              <p className="mt-2 text-[11px] text-white/70">Click any tile to cycle: Working &rarr; Faulty &rarr; Maintenance &rarr; Working.</p>
+            </div>
           </div>
 
           <div className="relative">
@@ -215,13 +244,6 @@ export default function LoginPage({ onAuth }) {
                   </button>
                 </div>
               </label>
-
-              <div className="-mt-1 flex items-center text-xs text-gray-500">
-                <label className="inline-flex items-center gap-1.5">
-                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="accent-[#9d2235]" />
-                  Remember me
-                </label>
-              </div>
 
               <button
                 className="w-full rounded-xl bg-accent px-4 py-3 font-medium text-white transition hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60"
