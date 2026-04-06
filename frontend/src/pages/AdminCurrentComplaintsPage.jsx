@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { LogOut, Search } from 'lucide-react';
+import { List, LogOut, RefreshCw, Search, Workflow } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { NavLink } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api } from '../lib/api';
 import NotificationBell from '../components/NotificationBell';
 import { getSocket } from '../lib/socket';
+import KanbanBoard from '../components/KanbanBoard';
 
 const formatDate = (value) => {
   if (!value) return '-';
@@ -19,28 +20,36 @@ const statusTone = {
 
 export default function AdminCurrentComplaintsPage({ session, onLogout }) {
   const [complaints, setComplaints] = useState([]);
+  const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState('list');
   const [filters, setFilters] = useState({
     lab: '',
     status: '',
-    query: ''
+    query: '',
+    sort: 'newest'
   });
 
-  const loadComplaints = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/complaints');
-      setComplaints((data || []).filter((item) => item.status !== 'resolved'));
+      const [{ data: allComplaints }, { data: kanbanCards }] = await Promise.all([
+        api.get('/complaints'),
+        api.get('/admin/kanban')
+      ]);
+      setComplaints((allComplaints || []).filter((item) => item.status !== 'resolved'));
+      setCards(kanbanCards || []);
     } catch {
       toast.error('Failed to load current complaints');
       setComplaints([]);
+      setCards([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadComplaints();
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -48,7 +57,7 @@ export default function AdminCurrentComplaintsPage({ session, onLogout }) {
     if (!socket) return undefined;
 
     const handleUpdate = () => {
-      loadComplaints();
+      loadData();
     };
 
     socket.on('labtrack:update', handleUpdate);
@@ -59,7 +68,7 @@ export default function AdminCurrentComplaintsPage({ session, onLogout }) {
   }, [session?.token]);
 
   const filteredComplaints = useMemo(() => {
-    return complaints.filter((item) => {
+    const visible = complaints.filter((item) => {
       const lab = (item.assets?.lab || '').toLowerCase();
       const systemId = (item.assets?.system_id || '').toLowerCase();
       const issue = (item.description || '').toLowerCase();
@@ -72,7 +81,22 @@ export default function AdminCurrentComplaintsPage({ session, onLogout }) {
 
       return matchLab && matchStatus && matchQuery;
     });
-  }, [complaints, filters.lab, filters.status, filters.query]);
+
+    const sorted = [...visible].sort((a, b) => {
+      const aTime = new Date(a.created_at || 0).getTime();
+      const bTime = new Date(b.created_at || 0).getTime();
+      return filters.sort === 'oldest' ? aTime - bTime : bTime - aTime;
+    });
+
+    return sorted;
+  }, [complaints, filters.lab, filters.status, filters.query, filters.sort]);
+
+  const pendingCount = useMemo(() => complaints.filter((item) => item.status === 'pending').length, [complaints]);
+  const inProgressCount = useMemo(() => complaints.filter((item) => item.status === 'in_progress').length, [complaints]);
+
+  const resetFilters = () => {
+    setFilters({ lab: '', status: '', query: '', sort: 'newest' });
+  };
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f5f0eb]">
@@ -125,9 +149,40 @@ export default function AdminCurrentComplaintsPage({ session, onLogout }) {
         className="relative z-10 mx-auto max-w-6xl p-6"
       >
         <div className="rounded-3xl border border-[#9d2235]/10 bg-white/90 p-4 shadow-glass backdrop-blur-md">
-          <h2 className="mb-3 text-lg font-semibold text-[#1f1417]">Current Complaints</h2>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-[#1f1417]">Current Complaints</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm ${viewMode === 'list' ? 'border-[#9d2235]/35 bg-[#fff6f7] text-[#6e1f30]' : 'border-[#9d2235]/20 bg-white text-gray-600'}`}
+              >
+                <List size={14} /> List
+              </button>
+              <button
+                onClick={() => setViewMode('board')}
+                className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm ${viewMode === 'board' ? 'border-[#9d2235]/35 bg-[#fff6f7] text-[#6e1f30]' : 'border-[#9d2235]/20 bg-white text-gray-600'}`}
+              >
+                <Workflow size={14} /> Resolution Board
+              </button>
+            </div>
+          </div>
 
-          <div className="mb-4 grid gap-3 md:grid-cols-3">
+          <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-[#9d2235]/10 bg-[#faf7f5] px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-gray-500">Open Total</p>
+              <p className="font-mono text-xl text-[#1e1720]">{complaints.length}</p>
+            </div>
+            <div className="rounded-2xl border border-[#9d2235]/10 bg-[#faf7f5] px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-gray-500">Pending</p>
+              <p className="font-mono text-xl text-[#7b2c30]">{pendingCount}</p>
+            </div>
+            <div className="rounded-2xl border border-[#9d2235]/10 bg-[#faf7f5] px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-gray-500">In Progress</p>
+              <p className="font-mono text-xl text-[#7b2c30]">{inProgressCount}</p>
+            </div>
+          </div>
+
+          <div className="mb-4 grid gap-3 md:grid-cols-5">
             <input
               type="text"
               placeholder="Filter by Lab"
@@ -144,6 +199,14 @@ export default function AdminCurrentComplaintsPage({ session, onLogout }) {
               <option value="pending">Pending</option>
               <option value="in_progress">In Progress</option>
             </select>
+            <select
+              value={filters.sort}
+              onChange={(e) => setFilters((prev) => ({ ...prev, sort: e.target.value }))}
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+            </select>
             <label className="relative block">
               <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
@@ -154,10 +217,26 @@ export default function AdminCurrentComplaintsPage({ session, onLogout }) {
                 className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-accent/40"
               />
             </label>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={resetFilters}
+                className="inline-flex items-center gap-1 rounded-xl border border-[#9d2235]/20 bg-white px-3 py-2 text-sm text-gray-600 hover:border-[#9d2235]/40"
+              >
+                <RefreshCw size={14} /> Reset
+              </button>
+              <button
+                onClick={loadData}
+                className="rounded-xl border border-[#9d2235]/20 bg-white px-3 py-2 text-sm text-gray-600 hover:border-[#9d2235]/40"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
 
           {loading ? (
             <p className="text-sm text-gray-500">Loading current complaints...</p>
+          ) : viewMode === 'board' ? (
+            <KanbanBoard items={cards} onRefresh={loadData} />
           ) : filteredComplaints.length ? (
             <div className="space-y-3">
               {filteredComplaints.map((item) => (

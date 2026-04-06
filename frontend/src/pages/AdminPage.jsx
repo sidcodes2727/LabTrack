@@ -1,17 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Download, LogOut, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { NavLink } from 'react-router-dom';
 import { api } from '../lib/api';
 import DashboardCharts from '../components/DashboardCharts';
-import KanbanBoard from '../components/KanbanBoard';
 import NotificationBell from '../components/NotificationBell';
 import { getSocket } from '../lib/socket';
 
 export default function AdminPage({ session, onLogout }) {
   const [dashboard, setDashboard] = useState({ totals: {}, complaintsPerLab: [], byStatus: [] });
-  const [cards, setCards] = useState([]);
   const [importing, setImporting] = useState(false);
   const [filters, setFilters] = useState({
     lab: '',
@@ -24,13 +22,18 @@ export default function AdminPage({ session, onLogout }) {
 
   const load = async () => {
     try {
-      const [{ data: dashData }, { data: cardsData }] = await Promise.all([api.get('/admin/dashboard'), api.get('/admin/kanban')]);
+      const { data: dashData } = await api.get('/admin/dashboard');
       setDashboard(dashData);
-      setCards(cardsData);
     } catch {
       toast.error('Failed to load admin dashboard');
     }
   };
+
+  const openComplaints = useMemo(() => {
+    const pending = dashboard.byStatus?.find((item) => item.name === 'pending')?.value || 0;
+    const inProgress = dashboard.byStatus?.find((item) => item.name === 'in_progress')?.value || 0;
+    return pending + inProgress;
+  }, [dashboard.byStatus]);
 
   useEffect(() => {
     load();
@@ -159,7 +162,7 @@ export default function AdminPage({ session, onLogout }) {
         </div>
         <div className="rounded-3xl border border-[#9d2235]/10 bg-white p-4 shadow-glass">
           <p className="text-xs uppercase tracking-wide text-gray-500">Open Complaints</p>
-          <p className="font-mono text-2xl">{cards.filter((c) => c.status !== 'resolved').length}</p>
+          <p className="font-mono text-2xl">{openComplaints}</p>
         </div>
       </motion.section>
 
@@ -244,13 +247,6 @@ export default function AdminPage({ session, onLogout }) {
         </div>
       </motion.section>
 
-      <motion.section
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.34, ease: 'easeOut', delay: 0.18 }}
-      >
-        <KanbanBoard items={cards} onRefresh={load} />
-      </motion.section>
       </motion.div>
     </div>
   );
