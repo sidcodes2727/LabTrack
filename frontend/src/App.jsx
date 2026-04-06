@@ -6,6 +6,8 @@ import LandingPage from './pages/LandingPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import StudentPage from './pages/StudentPage.jsx';
 import AdminPage from './pages/AdminPage.jsx';
+import StudentComplaintHistoryPage from './pages/StudentComplaintHistoryPage.jsx';
+import AdminCurrentComplaintsPage from './pages/AdminCurrentComplaintsPage.jsx';
 
 const ProtectedRoute = ({ allowedRoles, session, children }) => {
   if (!session) return <Navigate to="/login" replace />;
@@ -74,6 +76,26 @@ export default function App() {
             <AnimatedPage>
               <ProtectedRoute allowedRoles={['admin']} session={session}>
                 <AdminPage session={session} onLogout={authApi.signOut} />
+              </ProtectedRoute>
+            </AnimatedPage>
+          }
+        />
+        <Route
+          path="/student/history"
+          element={
+            <AnimatedPage>
+              <ProtectedRoute allowedRoles={['student']} session={session}>
+                <StudentComplaintHistoryPage session={session} onLogout={authApi.signOut} />
+              </ProtectedRoute>
+            </AnimatedPage>
+          }
+        />
+        <Route
+          path="/admin/current-complaints"
+          element={
+            <AnimatedPage>
+              <ProtectedRoute allowedRoles={['admin']} session={session}>
+                <AdminCurrentComplaintsPage session={session} onLogout={authApi.signOut} />
               </ProtectedRoute>
             </AnimatedPage>
           }

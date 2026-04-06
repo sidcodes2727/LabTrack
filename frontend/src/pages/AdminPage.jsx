@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Download, LogOut, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import { NavLink } from 'react-router-dom';
 import { api } from '../lib/api';
 import DashboardCharts from '../components/DashboardCharts';
 import KanbanBoard from '../components/KanbanBoard';
@@ -106,6 +107,21 @@ export default function AdminPage({ session, onLogout }) {
           <div className="text-lg font-semibold tracking-tight">Lab <span className="text-accent">Track</span></div>
           <span className="h-5 w-px bg-[#9d2235]/15" />
           <span className="text-sm text-gray-500">Admin Control Center</span>
+          <nav className="ml-4 hidden items-center gap-2 md:flex">
+            <NavLink
+              to="/admin"
+              className={({ isActive }) => `rounded-lg px-3 py-1.5 text-sm transition ${isActive ? 'bg-[#9d2235]/10 font-medium text-accent' : 'text-gray-600 hover:bg-[#9d2235]/8 hover:text-[#4a2330]'}`}
+              end
+            >
+              Dashboard
+            </NavLink>
+            <NavLink
+              to="/admin/current-complaints"
+              className={({ isActive }) => `rounded-lg px-3 py-1.5 text-sm transition ${isActive ? 'bg-[#9d2235]/10 font-medium text-accent' : 'text-gray-600 hover:bg-[#9d2235]/8 hover:text-[#4a2330]'}`}
+            >
+              Current Complaints
+            </NavLink>
+          </nav>
         </div>
         <div className="flex items-center gap-2">
           <NotificationBell endpoint="/admin/notifications" panelTitle="Admin Notifications" />

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { LogOut, Search } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import { api } from '../lib/api';
 import LabVisualizer from '../components/LabVisualizer';
 import ComplaintModal from '../components/ComplaintModal';
@@ -272,6 +273,21 @@ export default function StudentPage({ session, onLogout }) {
           <div className="text-lg font-semibold tracking-tight">Lab <span className="text-accent">Track</span></div>
           <span className="h-5 w-px bg-[#9d2235]/15" />
           <span className="text-sm text-gray-500">Student Portal</span>
+          <nav className="ml-4 hidden items-center gap-2 md:flex">
+            <NavLink
+              to="/student"
+              className={({ isActive }) => `rounded-lg px-3 py-1.5 text-sm transition ${isActive ? 'bg-[#9d2235]/10 font-medium text-accent' : 'text-gray-600 hover:bg-[#9d2235]/8 hover:text-[#4a2330]'}`}
+              end
+            >
+              Dashboard
+            </NavLink>
+            <NavLink
+              to="/student/history"
+              className={({ isActive }) => `rounded-lg px-3 py-1.5 text-sm transition ${isActive ? 'bg-[#9d2235]/10 font-medium text-accent' : 'text-gray-600 hover:bg-[#9d2235]/8 hover:text-[#4a2330]'}`}
+            >
+              Complaint History
+            </NavLink>
+          </nav>
         </div>
         <div className="flex items-center gap-2">
           <NotificationBell endpoint="/complaints/notifications" panelTitle="Student Notifications" />
