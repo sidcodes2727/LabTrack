@@ -102,7 +102,7 @@ export default function LoginPage({ onAuth }) {
 
       <header className="relative z-10 mb-8 flex items-center justify-between rounded-2xl border border-[#9d2235]/10 bg-white/70 px-5 py-3 backdrop-blur-md">
         <BrandLogo compact className="shrink-0" />
-        <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500">All systems operational</span>
+        {/* <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500">All systems operational</span> */}
       </header>
 
       <motion.div
