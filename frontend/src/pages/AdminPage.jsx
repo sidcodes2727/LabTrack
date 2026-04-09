@@ -8,6 +8,8 @@ import KanbanBoard from '../components/KanbanBoard';
 import NotificationBell from '../components/NotificationBell';
 import { getSocket } from '../lib/socket';
 
+const priorityWeight = { High: 3, Medium: 2, Low: 1 };
+
 export default function AdminPage({ session, onLogout }) {
   const [dashboard, setDashboard] = useState({ totals: {}, complaintsPerLab: [], byStatus: [] });
   const [cards, setCards] = useState([]);
@@ -25,7 +27,10 @@ export default function AdminPage({ session, onLogout }) {
     status: '',
     priority: '',
     lab: '',
-    section: ''
+    section: '',
+    from: '',
+    to: '',
+    sort: 'newest'
   });
 
   const load = async () => {
@@ -118,6 +123,33 @@ export default function AdminPage({ session, onLogout }) {
       next = next.filter((item) => item.assets?.section === kanbanFilters.section);
     }
 
+    if (kanbanFilters.from) {
+      const fromDate = new Date(kanbanFilters.from);
+      next = next.filter((item) => {
+        if (!item.created_at) return false;
+        return new Date(item.created_at) >= fromDate;
+      });
+    }
+
+    if (kanbanFilters.to) {
+      const toDate = new Date(kanbanFilters.to);
+      toDate.setHours(23, 59, 59, 999);
+      next = next.filter((item) => {
+        if (!item.created_at) return false;
+        return new Date(item.created_at) <= toDate;
+      });
+    }
+
+    if (kanbanFilters.sort === 'oldest') {
+      next.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+    } else if (kanbanFilters.sort === 'priority_high') {
+      next.sort((a, b) => (priorityWeight[b.priority] || 0) - (priorityWeight[a.priority] || 0));
+    } else if (kanbanFilters.sort === 'priority_low') {
+      next.sort((a, b) => (priorityWeight[a.priority] || 0) - (priorityWeight[b.priority] || 0));
+    } else {
+      next.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    }
+
     return next;
   }, [cards, kanbanFilters]);
 
@@ -128,6 +160,19 @@ export default function AdminPage({ session, onLogout }) {
     });
     return base;
   }, [filteredKanbanCards]);
+
+  const complaintStats = useMemo(() => {
+    const open = cards.filter((item) => item.status !== 'resolved').length;
+    const resolved = cards.filter((item) => item.status === 'resolved').length;
+    const high = cards.filter((item) => item.priority === 'High').length;
+
+    return {
+      total: cards.length,
+      open,
+      resolved,
+      high
+    };
+  }, [cards]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f5f0eb]">
@@ -169,15 +214,33 @@ export default function AdminPage({ session, onLogout }) {
           <div className="inline-flex rounded-2xl border border-[#9d2235]/20 bg-white/90 p-1 shadow-sm">
             <button
               onClick={() => setAdminView('operations')}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${adminView === 'operations' ? 'bg-[#9d2235] text-white' : 'text-[#5f5663] hover:bg-[#f7efef]'}`}
+              className="relative inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
             >
-              <LayoutDashboard size={16} /> Dashboard
+              {adminView === 'operations' && (
+                <motion.span
+                  layoutId="admin-view-slider"
+                  className="absolute inset-0 rounded-xl bg-[#9d2235]"
+                  transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.7 }}
+                />
+              )}
+              <span className={`relative z-10 inline-flex items-center gap-2 ${adminView === 'operations' ? 'text-white' : 'text-[#5f5663]'}`}>
+                <LayoutDashboard size={16} /> Dashboard
+              </span>
             </button>
             <button
               onClick={() => setAdminView('kanban')}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${adminView === 'kanban' ? 'bg-[#9d2235] text-white' : 'text-[#5f5663] hover:bg-[#f7efef]'}`}
+              className="relative inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
             >
-              <KanbanSquare size={16} /> Complaints
+              {adminView === 'kanban' && (
+                <motion.span
+                  layoutId="admin-view-slider"
+                  className="absolute inset-0 rounded-xl bg-[#9d2235]"
+                  transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.7 }}
+                />
+              )}
+              <span className={`relative z-10 inline-flex items-center gap-2 ${adminView === 'kanban' ? 'text-white' : 'text-[#5f5663]'}`}>
+                <KanbanSquare size={16} /> Complaints
+              </span>
             </button>
           </div>
 
@@ -305,19 +368,23 @@ export default function AdminPage({ session, onLogout }) {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="mb-4 grid gap-3 sm:grid-cols-3"
+              className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
             >
               <div className="rounded-3xl border border-[#9d2235]/10 bg-white p-4 shadow-glass">
-                <p className="text-xs uppercase tracking-wide text-gray-500">Pending</p>
-                <p className="font-mono text-2xl text-[#9d2235]">{kanbanStatusCounts.pending}</p>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Total Complaints</p>
+                <p className="font-mono text-2xl text-[#1e161f]">{complaintStats.total}</p>
               </div>
               <div className="rounded-3xl border border-[#9d2235]/10 bg-white p-4 shadow-glass">
-                <p className="text-xs uppercase tracking-wide text-gray-500">In Progress</p>
-                <p className="font-mono text-2xl text-[#7f3e47]">{kanbanStatusCounts.in_progress}</p>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Open</p>
+                <p className="font-mono text-2xl text-[#9d2235]">{complaintStats.open}</p>
               </div>
               <div className="rounded-3xl border border-[#9d2235]/10 bg-white p-4 shadow-glass">
                 <p className="text-xs uppercase tracking-wide text-gray-500">Resolved</p>
-                <p className="font-mono text-2xl text-emerald-700">{kanbanStatusCounts.resolved}</p>
+                <p className="font-mono text-2xl text-emerald-700">{complaintStats.resolved}</p>
+              </div>
+              <div className="rounded-3xl border border-[#9d2235]/10 bg-white p-4 shadow-glass">
+                <p className="text-xs uppercase tracking-wide text-gray-500">High Priority</p>
+                <p className="font-mono text-2xl text-amber-700">{complaintStats.high}</p>
               </div>
             </motion.section>
 
@@ -330,14 +397,14 @@ export default function AdminPage({ session, onLogout }) {
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-[#2a202b]">Filters</p>
                 <button
-                  onClick={() => setKanbanFilters({ query: '', status: '', priority: '', lab: '', section: '' })}
+                  onClick={() => setKanbanFilters({ query: '', status: '', priority: '', lab: '', section: '', from: '', to: '', sort: 'newest' })}
                   className="rounded-xl border border-[#9d2235]/20 px-3 py-1.5 text-xs text-[#5f5663] hover:border-[#9d2235]/40"
                 >
                   Reset
                 </button>
               </div>
 
-              <div className="grid gap-2 md:grid-cols-5">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-6">
                 <label className="relative">
                   <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
@@ -391,9 +458,37 @@ export default function AdminPage({ session, onLogout }) {
                     <option key={section} value={section}>{section}</option>
                   ))}
                 </select>
+
+                <input
+                  type="date"
+                  value={kanbanFilters.from}
+                  onChange={(e) => setKanbanFilters((p) => ({ ...p, from: e.target.value }))}
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
+                />
+
+                <input
+                  type="date"
+                  value={kanbanFilters.to}
+                  onChange={(e) => setKanbanFilters((p) => ({ ...p, to: e.target.value }))}
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
+                />
+
+                <select
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
+                  value={kanbanFilters.sort}
+                  onChange={(e) => setKanbanFilters((p) => ({ ...p, sort: e.target.value }))}
+                >
+                  <option value="newest">Sort: Newest</option>
+                  <option value="oldest">Sort: Oldest</option>
+                  <option value="priority_high">Sort: Priority High-Low</option>
+                  <option value="priority_low">Sort: Priority Low-High</option>
+                </select>
               </div>
 
-              <p className="mt-2 text-xs text-gray-500">Showing {filteredKanbanCards.length} of {cards.length} complaints in board</p>
+              <p className="mt-2 text-xs text-gray-500">
+                Showing {filteredKanbanCards.length} of {cards.length} complaints.
+                Pending: {kanbanStatusCounts.pending}, In Progress: {kanbanStatusCounts.in_progress}, Resolved: {kanbanStatusCounts.resolved}
+              </p>
             </motion.section>
 
             <motion.section

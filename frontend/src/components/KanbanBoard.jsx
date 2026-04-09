@@ -97,6 +97,10 @@ export default function KanbanBoard({ items, onRefresh }) {
 
   const activeCard = boardItems.find((card) => card.id === activeId) || null;
 
+  const openDetail = (card) => {
+    setDetailCard(card);
+  };
+
   return (
     <DndContext
       sensors={sensors}
@@ -107,7 +111,7 @@ export default function KanbanBoard({ items, onRefresh }) {
     >
       <div className="grid gap-4 md:grid-cols-3">
         {columns.map((col) => (
-          <KanbanColumn key={col.key} id={col.key} title={col.title} cards={grouped[col.key]} onOpenDetail={setDetailCard} />
+          <KanbanColumn key={col.key} id={col.key} title={col.title} cards={grouped[col.key]} onOpenDetail={openDetail} />
         ))}
       </div>
 
@@ -224,6 +228,25 @@ function ComplaintDetailModal({ card, onClose }) {
               <p className="font-semibold text-[#181019]">{card.users?.name || 'Unknown student'}</p>
               <p className="text-gray-600">{card.users?.email || 'No email available'}</p>
               <p className="mt-1 text-gray-500">{card.assets?.lab} / {card.assets?.section}</p>
+            </div>
+
+            <div className="mb-3 grid gap-2 rounded-xl border border-[#9d2235]/10 bg-white p-3 text-xs sm:grid-cols-2">
+              <div>
+                <p className="uppercase tracking-wide text-[#8b8392]">Status</p>
+                <p className="mt-0.5 font-semibold text-[#221a26]">{(card.status || 'pending').replace('_', ' ')}</p>
+              </div>
+              <div>
+                <p className="uppercase tracking-wide text-[#8b8392]">Priority</p>
+                <p className="mt-0.5 font-semibold text-[#221a26]">{card.priority || 'Medium'}</p>
+              </div>
+              <div>
+                <p className="uppercase tracking-wide text-[#8b8392]">Reported On</p>
+                <p className="mt-0.5 font-semibold text-[#221a26]">{formatDateTime(card.created_at)}</p>
+              </div>
+              <div>
+                <p className="uppercase tracking-wide text-[#8b8392]">Last Updated</p>
+                <p className="mt-0.5 font-semibold text-[#221a26]">{formatDateTime(card.updated_at || card.created_at)}</p>
+              </div>
             </div>
 
             <p className="text-sm leading-relaxed text-[#2d2430]">{card.description}</p>

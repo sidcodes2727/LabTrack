@@ -358,18 +358,36 @@ export default function StudentPage({ session, onLogout }) {
           <div className="inline-flex rounded-2xl border border-[#9d2235]/20 bg-white/90 p-1 shadow-sm">
             <button
               onClick={() => setStudentView('current')}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${studentView === 'current' ? 'bg-[#9d2235] text-white' : 'text-[#5f5663] hover:bg-[#f7efef]'}`}
+              className="relative inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
             >
-              <Workflow size={16} /> Current Arena
+              {studentView === 'current' && (
+                <motion.span
+                  layoutId="student-view-slider"
+                  className="absolute inset-0 rounded-xl bg-[#9d2235]"
+                  transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.7 }}
+                />
+              )}
+              <span className={`relative z-10 inline-flex items-center gap-2 ${studentView === 'current' ? 'text-white' : 'text-[#5f5663]'}`}>
+                <Workflow size={16} /> Current Arena
+              </span>
             </button>
             <button
               onClick={() => setStudentView('complaints')}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${studentView === 'complaints' ? 'bg-[#9d2235] text-white' : 'text-[#5f5663] hover:bg-[#f7efef]'}`}
+              className="relative inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
             >
-              <ClipboardList size={16} />
-              My Complaints
-              <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] ${studentView === 'complaints' ? 'bg-white text-[#9d2235]' : 'bg-[#9d2235] text-white'}`}>
-                {myComplaints.length}
+              {studentView === 'complaints' && (
+                <motion.span
+                  layoutId="student-view-slider"
+                  className="absolute inset-0 rounded-xl bg-[#9d2235]"
+                  transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.7 }}
+                />
+              )}
+              <span className={`relative z-10 inline-flex items-center gap-2 ${studentView === 'complaints' ? 'text-white' : 'text-[#5f5663]'}`}>
+                <ClipboardList size={16} />
+                My Complaints
+                <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] ${studentView === 'complaints' ? 'bg-white text-[#9d2235]' : 'bg-[#9d2235] text-white'}`}>
+                  {myComplaints.length}
+                </span>
               </span>
             </button>
           </div>
