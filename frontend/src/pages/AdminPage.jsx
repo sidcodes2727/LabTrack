@@ -191,13 +191,13 @@ export default function AdminPage({ session, onLogout }) {
               onClick={() => setAdminView('operations')}
               className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${adminView === 'operations' ? 'bg-[#9d2235] text-white' : 'text-[#5f5663] hover:bg-[#f7efef]'}`}
             >
-              <LayoutDashboard size={16} /> Operations Hub
+              <LayoutDashboard size={16} /> Dashboard
             </button>
             <button
               onClick={() => setAdminView('kanban')}
               className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${adminView === 'kanban' ? 'bg-[#9d2235] text-white' : 'text-[#5f5663] hover:bg-[#f7efef]'}`}
             >
-              <KanbanSquare size={16} /> Kanban Board
+              <KanbanSquare size={16} /> Complaints
             </button>
           </div>
 
@@ -353,7 +353,7 @@ export default function AdminPage({ session, onLogout }) {
               className="mb-4 rounded-3xl border border-[#9d2235]/10 bg-white/90 p-4 shadow-glass backdrop-blur-md"
             >
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-[#2a202b]">Kanban Filters</p>
+                <p className="text-sm font-semibold text-[#2a202b]">Filters</p>
                 <button
                   onClick={() => setKanbanFilters({ query: '', status: '', priority: '', lab: '', section: '' })}
                   className="rounded-xl border border-[#9d2235]/20 px-3 py-1.5 text-xs text-[#5f5663] hover:border-[#9d2235]/40"

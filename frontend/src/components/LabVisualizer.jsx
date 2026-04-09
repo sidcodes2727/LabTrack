@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion';
 
+const getAssetNodeKey = (pc) => pc?.id || pc?.system_id || `${pc?.lab || 'lab'}-${pc?.section || 'sec'}-${pc?.row_num || 0}-${pc?.position || 0}`;
+
 const statusStyles = {
   working: {
     screen: 'border-emerald-500 bg-emerald-50',
@@ -26,7 +28,7 @@ const statusStyles = {
 
 function PcNode({ pc, onSelect, selectedId, label }) {
   const tone = statusStyles[pc.status] || statusStyles.working;
-  const isSelected = selectedId === pc.id;
+  const isSelected = selectedId === getAssetNodeKey(pc);
 
   return (
     <motion.button
@@ -65,9 +67,9 @@ function Lab2Layout({ groupedRows, onSelect, selectedId }) {
   return (
     <div className="space-y-3">
       <p className="font-mono text-[10px] uppercase tracking-wide text-gray-500">Wall Bench A</p>
-      <div className="grid grid-cols-9 gap-2">
+      <div className="grid grid-cols-10 gap-2">
         {benchA.map((pc) => (
-          <PcNode key={pc.id} pc={pc} onSelect={onSelect} selectedId={selectedId} label={`P${String(pc.position).padStart(2, '0')}`} />
+          <PcNode key={getAssetNodeKey(pc)} pc={pc} onSelect={onSelect} selectedId={selectedId} label={`P${String(pc.position).padStart(2, '0')}`} />
         ))}
       </div>
 
@@ -75,9 +77,9 @@ function Lab2Layout({ groupedRows, onSelect, selectedId }) {
         Main Aisle
       </div>
 
-      <div className="grid grid-cols-9 gap-2">
+      <div className="grid grid-cols-10 gap-2">
         {benchB.map((pc) => (
-          <PcNode key={pc.id} pc={pc} onSelect={onSelect} selectedId={selectedId} label={`P${String(pc.position).padStart(2, '0')}`} />
+          <PcNode key={getAssetNodeKey(pc)} pc={pc} onSelect={onSelect} selectedId={selectedId} label={`P${String(pc.position).padStart(2, '0')}`} />
         ))}
       </div>
       <p className="font-mono text-[10px] uppercase tracking-wide text-gray-500">Wall Bench B</p>
@@ -103,7 +105,7 @@ function Lab3Layout({ leftRows, rightRows, onSelect, selectedId }) {
             {leftRows.map((rowItems, idx) => (
               <div key={`l-${idx}`} className="grid grid-cols-4 gap-2">
                 {rowItems.map((pc) => (
-                  <PcNode key={pc.id} pc={pc} onSelect={onSelect} selectedId={selectedId} label={`P${String(pc.position).padStart(2, '0')}`} />
+                  <PcNode key={getAssetNodeKey(pc)} pc={pc} onSelect={onSelect} selectedId={selectedId} label={`P${String(pc.position).padStart(2, '0')}`} />
                 ))}
               </div>
             ))}
@@ -120,7 +122,7 @@ function Lab3Layout({ leftRows, rightRows, onSelect, selectedId }) {
             {rightRows.map((rowItems, idx) => (
               <div key={`r-${idx}`} className="grid grid-cols-4 gap-2">
                 {rowItems.map((pc) => (
-                  <PcNode key={pc.id} pc={pc} onSelect={onSelect} selectedId={selectedId} label={`P${String(pc.position).padStart(2, '0')}`} />
+                  <PcNode key={getAssetNodeKey(pc)} pc={pc} onSelect={onSelect} selectedId={selectedId} label={`P${String(pc.position).padStart(2, '0')}`} />
                 ))}
               </div>
             ))}
@@ -164,12 +166,12 @@ export default function LabVisualizer({ assets, onSelect, selectedId }) {
               <div key={section} className="rounded-2xl border border-[#9d2235]/20 bg-[#fffdfd] p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="font-mono text-xs uppercase tracking-[0.12em] text-gray-700">Section {section}</h3>
-                  <p className="font-mono text-[11px] text-gray-500">2 facing rows x 9 PCs</p>
+                  <p className="font-mono text-[11px] text-gray-500">2 facing rows x 10 PCs</p>
                 </div>
 
                 <div className="rounded-xl border border-[#9d2235]/20 bg-white p-3">
                   <div className="overflow-x-auto">
-                    <div className="min-w-[690px]">
+                    <div className="min-w-[760px]">
                       <Lab2Layout groupedRows={rows} onSelect={onSelect} selectedId={selectedId} />
                     </div>
                   </div>

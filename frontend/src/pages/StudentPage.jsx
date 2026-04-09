@@ -462,7 +462,7 @@ export default function StudentPage({ session, onLogout }) {
                   </div>
 
                   <div className="-ml-2">
-                    <LabVisualizer assets={assets} onSelect={loadDetail} selectedId={selectedAsset?.id} />
+                    <LabVisualizer assets={assets} onSelect={loadDetail} selectedId={selectedAsset?.id || selectedAsset?.system_id} />
                   </div>
                 </div>
               </motion.section>

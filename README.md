@@ -65,8 +65,8 @@ LabTrack is a full-stack SaaS-style web app for campus lab asset visualization, 
 
 - LAB 2
   - Sections: 2A, 2B, 2C
-  - Layout: 2 rows x 9 PCs per section
-  - Total: 54
+   - Layout: 2 rows x 10 PCs per section
+   - Total: 60
 - LAB 3A and LAB 3B
   - Sections: L, R
   - Layout: 4 x 4 grid per section

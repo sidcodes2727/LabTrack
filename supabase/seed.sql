@@ -20,14 +20,14 @@ declare
 begin
   for sec in select unnest(array['2A','2B','2C']) loop
     for r in 1..2 loop
-      for p in 1..9 loop
+      for p in 1..10 loop
         i := i + 1;
         if i <= 83 then st := 'working';
         elsif i <= 106 then st := 'faulty';
         else st := 'maintenance';
         end if;
 
-        sys_id := format('LAB2-%s-PC-%s', sec, lpad(((r - 1) * 9 + p)::text, 2, '0'));
+        sys_id := format('LAB2-%s-PC-%s', sec, lpad(((r - 1) * 10 + p)::text, 2, '0'));
         orig_id := format(
           'VJTI/IT-Infra/May-22/AIO/701/CEOTI/3/37/53/70-%s-R%s-P%s',
           sec,
