@@ -433,12 +433,9 @@ export default function LandingPage({ session }) {
 
                     <div className="mt-4 grid grid-cols-3 gap-2">
                       {[
-                        { id: 'L1-A', state: 'ok', tone: 'bg-[#4ca875]' },
-                        { id: 'L2-C', state: 'maint', tone: 'bg-[#d8a14a]' },
-                        { id: 'L3-F', state: 'fault', tone: 'bg-[#d34e63]' },
-                        { id: 'L4-B', state: 'ok', tone: 'bg-[#4ca875]' },
-                        { id: 'L5-D', state: 'ok', tone: 'bg-[#4ca875]' },
-                        { id: 'L6-H', state: 'fault', tone: 'bg-[#d34e63]' }
+                        { id: 'LAB 2', state: 'maint', tone: 'bg-[#d8a14a]' },
+                        { id: 'LAB 3A', state: 'ok', tone: 'bg-[#4ca875]' },
+                        { id: 'LAB 3B', state: 'fault', tone: 'bg-[#d34e63]' }
                       ].map((node, index) => (
                         <motion.div
                           key={node.id}
