@@ -17,6 +17,12 @@ const priorityColor = {
   High: 'bg-red-100 text-red-700'
 };
 
+const formatDateTime = (rawDate) => {
+  if (!rawDate) return 'N/A';
+  const d = new Date(rawDate);
+  return d.toLocaleDateString('en-CA') + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+};
+
 export default function KanbanBoard({ items, onRefresh }) {
   const [boardItems, setBoardItems] = useState(items || []);
   const [activeId, setActiveId] = useState(null);
@@ -165,6 +171,12 @@ function KanbanCard({ card, dragging = false, onOpenDetail }) {
         {card.description}
       </p>
       <p className="mt-2 text-xs text-gray-500">{card.assets?.lab} / {card.assets?.section}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-400">
+        <span>Created: {formatDateTime(card.created_at)}</span>
+        {card.updated_at && card.updated_at !== card.created_at && (
+          <span>Last Updated: {formatDateTime(card.updated_at)}</span>
+        )}
+      </div>
 
       {showPreview && (
         <div className="mt-3 rounded-xl border border-[#9d2235]/12 bg-[#fbf7f5] p-2 text-xs">
