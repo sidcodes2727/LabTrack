@@ -39,8 +39,8 @@ const phaseMeta = {
 };
 
 const heroStats = [
-  { label: 'Lab Nodes Monitored', value: '240+' },
-  { label: 'Avg. Triage Response', value: '< 3 min' },
+  { label: 'Lab Nodes Monitored', value: '124' },
+  { label: 'AI Priority Suggestion', value: '< 5 sec' },
   { label: 'Issue Timeline Visibility', value: '100%' }
 ];
 
