@@ -189,16 +189,30 @@ export default function LoginPage({ onAuth }) {
                 <button
                   type="button"
                   onClick={() => setForm((prev) => ({ ...prev, role: 'student' }))}
-                  className={`rounded-lg px-3 py-2 text-sm transition ${form.role === 'student' ? 'bg-white shadow-sm' : 'text-gray-500'}`}
+                  className="relative rounded-lg px-3 py-2 text-sm font-medium transition-colors"
                 >
-                  Student
+                  {form.role === 'student' && (
+                    <motion.span
+                      layoutId="login-role-slider"
+                      className="absolute inset-0 rounded-lg bg-white shadow-sm"
+                      transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.7 }}
+                    />
+                  )}
+                  <span className={`relative z-10 ${form.role === 'student' ? 'text-gray-900' : 'text-gray-500'}`}>Student</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setForm((prev) => ({ ...prev, role: 'admin' }))}
-                  className={`rounded-lg px-3 py-2 text-sm transition ${form.role === 'admin' ? 'bg-white shadow-sm' : 'text-gray-500'}`}
+                  className="relative rounded-lg px-3 py-2 text-sm font-medium transition-colors"
                 >
-                  Admin
+                  {form.role === 'admin' && (
+                    <motion.span
+                      layoutId="login-role-slider"
+                      className="absolute inset-0 rounded-lg bg-white shadow-sm"
+                      transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.7 }}
+                    />
+                  )}
+                  <span className={`relative z-10 ${form.role === 'admin' ? 'text-gray-900' : 'text-gray-500'}`}>Admin</span>
                 </button>
               </div>
 
