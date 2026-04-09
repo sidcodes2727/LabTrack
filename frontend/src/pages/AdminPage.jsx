@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, KanbanSquare, LayoutDashboard, LogOut, Search, Upload } from 'lucide-react';
+import { Download, KanbanSquare, LayoutDashboard, LogOut, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
@@ -11,7 +11,6 @@ import { getSocket } from '../lib/socket';
 export default function AdminPage({ session, onLogout }) {
   const [dashboard, setDashboard] = useState({ totals: {}, complaintsPerLab: [], byStatus: [] });
   const [cards, setCards] = useState([]);
-  const [importing, setImporting] = useState(false);
   const [adminView, setAdminView] = useState('operations');
   const [exportFilters, setExportFilters] = useState({
     lab: '',
@@ -57,25 +56,6 @@ export default function AdminPage({ session, onLogout }) {
       socket.off('labtrack:update', handleUpdate);
     };
   }, [session?.token]);
-
-  const handleImport = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImporting(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const { data } = await api.post('/admin/import', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      toast.success(`Imported ${data.imported} assets`);
-      load();
-    } catch {
-      toast.error('Import failed');
-    } finally {
-      setImporting(false);
-    }
-  };
 
   const exportFile = async (format) => {
     try {
@@ -258,7 +238,7 @@ export default function AdminPage({ session, onLogout }) {
               transition={{ duration: 0.34, ease: 'easeOut', delay: 0.12 }}
               className="mb-4 rounded-3xl border border-[#9d2235]/10 bg-white/90 p-4 shadow-glass backdrop-blur-md"
             >
-              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">Export and Import</div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">Export Reports</div>
               <div className="mb-3 grid gap-2 md:grid-cols-6">
                 <input
                   placeholder="Lab"
@@ -307,11 +287,6 @@ export default function AdminPage({ session, onLogout }) {
               </div>
 
               <div className="mb-3 flex flex-wrap gap-2">
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#9d2235]/20 bg-white px-3 py-2 text-sm hover:border-[#9d2235]/40">
-                  <Upload size={16} />
-                  {importing ? 'Importing...' : 'Import CSV/Excel'}
-                  <input type="file" className="hidden" accept=".csv,.xlsx,.xls" onChange={handleImport} />
-                </label>
                 <button onClick={() => exportFile('csv')} className="inline-flex items-center gap-2 rounded-xl border border-[#9d2235]/20 bg-white px-3 py-2 text-sm hover:border-[#9d2235]/40">
                   <Download size={16} /> Export CSV
                 </button>

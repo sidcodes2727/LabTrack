@@ -292,6 +292,19 @@ router.get('/export', async (req, res, next) => {
         return Number.isNaN(date.getTime()) ? null : date;
       };
 
+      const formatDateTime = (value) => {
+        const date = asDate(value);
+        if (!date) return '-';
+        return date.toLocaleString('en-GB', {
+          year: 'numeric',
+          month: 'short',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+      };
+
       const pct = (part, total) => (total ? `${((part / total) * 100).toFixed(1)}%` : '0.0%');
 
       const bar = (x, y, width, height, value, max, color) => {
@@ -401,19 +414,30 @@ router.get('/export', async (req, res, next) => {
         ['To', to]
       ].filter(([, value]) => Boolean(value));
 
+      const reportCode = `LT-${today.toISOString().slice(0, 10)}-${String(total).padStart(4, '0')}`;
+
       const drawHeader = () => {
         doc.save();
-        doc.roundedRect(40, 30, contentWidth, 68, 12).fill('#9d2235');
-        doc.fillColor('#ffffff').fontSize(19).font('Helvetica-Bold').text('LabTrack Complaint Report', 56, 50);
+        doc.roundedRect(40, 30, contentWidth, 84, 12).fill('#9d2235');
+
+        doc.roundedRect(56, 49, 46, 46, 10).fill('#ffffff');
+        doc.fillColor('#9d2235').font('Helvetica-Bold').fontSize(19).text('LT', 68, 63);
+
+        doc.fillColor('#ffffff').fontSize(19).font('Helvetica-Bold').text('LabTrack Complaint Report', 116, 51);
         doc
           .fontSize(10)
           .font('Helvetica')
-          .text(`Generated: ${new Date().toLocaleString()}`, 56, 74);
+          .text('Campus Lab Asset Reliability and Service Analytics', 116, 74);
+        doc
+          .fontSize(9)
+          .font('Helvetica')
+          .fillColor('#ffe4e6')
+          .text(`Generated: ${new Date().toLocaleString()}  |  Report ID: ${reportCode}`, 116, 89);
         doc.restore();
       };
 
       const drawFilterAndKpi = () => {
-        doc.y = 115;
+        doc.y = 130;
         resetCursor();
         doc.fillColor('#1f2937').font('Helvetica-Bold').fontSize(11).text('Applied Filters', leftX, doc.y, { width: contentWidth });
 
@@ -669,6 +693,85 @@ router.get('/export', async (req, res, next) => {
         });
       };
 
+      const drawDetailedLogSection = () => {
+        ensureSpace(120);
+        resetCursor();
+        doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text('Detailed Complaint Log', leftX, doc.y, { width: contentWidth });
+        doc.moveDown(0.3);
+
+        if (!filtered.length) {
+          resetCursor();
+          doc.font('Helvetica').fontSize(10).fillColor('#6b7280').text('No complaint records available for detailed listing.', leftX, doc.y, { width: contentWidth });
+          doc.moveDown(0.4);
+          return;
+        }
+
+        const visibleRows = filtered.slice(0, 60);
+        const hasMoreRows = filtered.length > visibleRows.length;
+
+        resetCursor();
+        doc
+          .font('Helvetica')
+          .fontSize(9)
+          .fillColor('#6b7280')
+          .text(
+            hasMoreRows
+              ? `Showing first ${visibleRows.length} most recent complaints out of ${filtered.length}.`
+              : `Showing all ${visibleRows.length} complaints.`,
+            leftX,
+            doc.y,
+            { width: contentWidth }
+          );
+        doc.moveDown(0.4);
+
+        visibleRows.forEach((item, index) => {
+          const systemId = item.assets?.system_id || 'Unknown';
+          const location = `${item.assets?.lab || 'Unknown'} / ${item.assets?.section || 'N/A'}`;
+          const statusLabel = String(item.status || 'unknown').replace('_', ' ');
+          const description = String(item.description || '-').replace(/\s+/g, ' ').trim();
+          const trimmedDescription = description.length > 260 ? `${description.slice(0, 257)}...` : description;
+
+          const detailLine = `Location: ${location}  |  Priority: ${item.priority || '-'}  |  Status: ${statusLabel}`;
+          const dateLine = `Created: ${formatDateTime(item.created_at)}  |  Updated: ${formatDateTime(item.updated_at || item.created_at)}`;
+
+          const descriptionHeight = doc.heightOfString(trimmedDescription, { width: contentWidth - 20 });
+          const rowHeight = Math.max(70, 50 + descriptionHeight);
+
+          ensureSpace(rowHeight + 8);
+          const rowY = doc.y;
+
+          doc.save();
+          doc.roundedRect(leftX, rowY, contentWidth, rowHeight, 8).fill(index % 2 === 0 ? '#f8fafc' : '#f1f5f9');
+          doc.restore();
+
+          doc
+            .font('Helvetica-Bold')
+            .fontSize(10)
+            .fillColor('#111827')
+            .text(`${index + 1}. ${systemId}`, leftX + 10, rowY + 8, { width: contentWidth - 20 });
+
+          doc
+            .font('Helvetica')
+            .fontSize(9)
+            .fillColor('#4b5563')
+            .text(detailLine, leftX + 10, rowY + 22, { width: contentWidth - 20 });
+
+          doc
+            .font('Helvetica')
+            .fontSize(9)
+            .fillColor('#6b7280')
+            .text(dateLine, leftX + 10, rowY + 34, { width: contentWidth - 20 });
+
+          doc
+            .font('Helvetica')
+            .fontSize(9.5)
+            .fillColor('#1f2937')
+            .text(trimmedDescription, leftX + 10, rowY + 48, { width: contentWidth - 20 });
+
+          doc.y = rowY + rowHeight + 8;
+        });
+      };
+
       drawHeader();
       drawFilterAndKpi();
 
@@ -690,6 +793,7 @@ router.get('/export', async (req, res, next) => {
         drawHotspotsSection();
         drawAssetHotspotSection();
         drawRecommendations();
+        drawDetailedLogSection();
       }
 
       const pageCount = doc.bufferedPageRange().count;
