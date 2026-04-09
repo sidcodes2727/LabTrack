@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { ShieldCheck, Lock, Mail, User, Eye, EyeOff, CircleCheckBig } from 'lucide-react';
 import { api } from '../lib/api';
+import BrandLogo from '../components/BrandLogo';
 
 const TOTAL_LAB_SEATS = 30;
 
@@ -100,12 +101,7 @@ export default function LoginPage({ onAuth }) {
       ))}
 
       <header className="relative z-10 mb-8 flex items-center justify-between rounded-2xl border border-[#9d2235]/10 bg-white/70 px-5 py-3 backdrop-blur-md">
-        <div className="flex items-center gap-2 text-xl font-semibold tracking-tight text-ink">
-          <span className="grid h-6 w-6 place-items-center rounded-md bg-accent text-xs text-white">●</span>
-          <span>
-            Lab <span className="text-accent">Track</span>
-          </span>
-        </div>
+        <BrandLogo compact className="shrink-0" />
         <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500">All systems operational</span>
       </header>
 
@@ -120,10 +116,7 @@ export default function LoginPage({ onAuth }) {
             <div className="absolute -bottom-14 -left-8 h-56 w-56 rounded-full border-[28px] border-white/5" />
 
             <div className="relative z-10">
-              <h1 className="flex items-center gap-2 text-4xl font-semibold tracking-tight">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15 text-sm">✦</span>
-                LabTrack
-              </h1>
+              <BrandLogo compact light />
               <p className="mt-3 max-w-64 text-sm leading-6 text-white/80">
                 Campus lab asset management with visual maps, AI issue triage, and real-time admin workflows.
               </p>

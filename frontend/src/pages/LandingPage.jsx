@@ -16,6 +16,7 @@ import {
   Wrench
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import BrandLogo from '../components/BrandLogo';
 
 const phaseOrder = ['fault', 'repair', 'online'];
 
@@ -277,15 +278,7 @@ export default function LandingPage({ session }) {
             className="relative z-10 min-h-screen px-5 pb-10 pt-6 md:px-8"
           >
             <header className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#9d2235]/12 bg-white/80 px-4 py-3 shadow-[0_14px_34px_rgba(87,32,43,0.12)] backdrop-blur-xl md:px-6">
-              <div className="flex items-center gap-3">
-                <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[#7e2232] via-[#9d2235] to-[#c04959] text-white shadow-[0_10px_20px_rgba(128,35,52,0.38)]">
-                  <Cpu size={17} />
-                </div>
-                <div>
-                  <p className="text-xl font-semibold tracking-tight text-[#25181e]">TrackLab</p>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-[#8f6670]">Campus Asset Intelligence</p>
-                </div>
-              </div>
+              <BrandLogo compact className="shrink-0" />
 
               <div className="hidden items-center gap-5 text-sm font-medium text-[#684f57] md:flex">
                 <a href="#about" className="transition hover:text-accent">About</a>

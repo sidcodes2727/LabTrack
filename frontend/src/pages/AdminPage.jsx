@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import DashboardCharts from '../components/DashboardCharts';
 import KanbanBoard from '../components/KanbanBoard';
 import NotificationBell from '../components/NotificationBell';
+import BrandLogo from '../components/BrandLogo';
 import { getSocket } from '../lib/socket';
 
 const priorityWeight = { High: 3, Medium: 2, Low: 1 };
@@ -186,7 +187,7 @@ export default function AdminPage({ session, onLogout }) {
         className="relative z-20 flex h-14 items-center justify-between border-b border-[#9d2235]/10 bg-white/95 px-5 shadow-sm"
       >
         <div className="flex items-center gap-3">
-          <div className="text-lg font-semibold tracking-tight">Lab <span className="text-accent">Track</span></div>
+          <BrandLogo compact className="shrink-0" />
           <span className="h-5 w-px bg-[#9d2235]/15" />
           <span className="text-sm text-gray-500">Admin Control Center</span>
         </div>
