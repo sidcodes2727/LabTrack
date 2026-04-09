@@ -678,6 +678,17 @@ export default function LandingPage({ session }) {
                 </Link>
               </div>
             </motion.section>
+
+            <motion.section
+              variants={sectionReveal}
+              initial="hidden"
+              whileInView="visible"
+              viewport={sectionViewport}
+              transition={{ duration: 0.45, ease: 'easeOut' }}
+              className="mx-auto mt-8 w-full max-w-6xl pb-2 text-center"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8e3c4d]">Made With Too Much Coffee</p>
+            </motion.section>
           </motion.main>
         )}
       </AnimatePresence>
