@@ -97,7 +97,11 @@ function Lab3Layout({ leftRows, rightRows, onSelect, selectedId }) {
 
   return (
     <div className="space-y-2">
-      <div className="rounded-xl border border-[#9d2235]/35 bg-[#fff6f7] py-1 text-center font-mono text-[11px] text-[#9d2235]">Instructor Console</div>
+      <div className="grid grid-cols-[88px_1fr_88px] items-center gap-2 rounded-xl border border-[#9d2235]/35 bg-[#fff6f7] p-2 font-mono text-[11px] text-[#9d2235]">
+        <div className="rounded-md border border-dashed border-[#9d2235]/35 bg-white/80 py-1 text-center text-[10px] uppercase tracking-wide text-[#8d3445]">Door</div>
+        <div className="rounded-md border border-[#9d2235]/25 bg-white py-1 text-center text-[10px] uppercase tracking-wide text-[#7b2434]">Smart Board</div>
+        <div className="rounded-md border border-dashed border-[#9d2235]/35 bg-white/80 py-1 text-center text-[10px] uppercase tracking-wide text-[#8d3445]">Door</div>
+      </div>
       <div className="grid grid-cols-[1fr_96px_1fr] gap-3">
         <div>
           <p className="mb-1 font-mono text-[10px] uppercase tracking-wide text-gray-500">Left Wing</p>
@@ -129,7 +133,6 @@ function Lab3Layout({ leftRows, rightRows, onSelect, selectedId }) {
           </div>
         </div>
       </div>
-      <div className="rounded-xl border border-[#9d2235]/35 bg-[#fff6f7] py-1 text-center font-mono text-[11px] text-[#9d2235]">Entry / Exit</div>
     </div>
   );
 }
@@ -146,6 +149,8 @@ export default function LabVisualizer({ assets, onSelect, selectedId }) {
     return acc;
   }, {});
 
+  const orderedLab2Sections = ['2A', '2B', '2C'];
+
   return (
     <div className="space-y-8 rounded-3xl border border-[#9d2235]/20 bg-white p-4 shadow-glass">
       <div className="flex flex-wrap gap-4 text-xs text-gray-600">
@@ -155,30 +160,52 @@ export default function LabVisualizer({ assets, onSelect, selectedId }) {
       </div>
 
       {activeLab === 'LAB 2'
-        ? Object.entries(grouped).map(([section, sectionAssets]) => {
-            const rows = sectionAssets.reduce((acc, item) => {
-              if (!acc[item.row_num]) acc[item.row_num] = [];
-              acc[item.row_num].push(item);
-              return acc;
-            }, {});
+        ? (() => {
+            const lab2Sections = [...orderedLab2Sections, ...Object.keys(grouped).filter((key) => !orderedLab2Sections.includes(key))]
+              .filter((section) => grouped[section]?.length);
 
             return (
-              <div key={section} className="rounded-2xl border border-[#9d2235]/20 bg-[#fffdfd] p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="font-mono text-xs uppercase tracking-[0.12em] text-gray-700">Section {section}</h3>
-                  <p className="font-mono text-[11px] text-gray-500">2 facing rows x 10 PCs</p>
+              <div className="grid gap-4 lg:grid-cols-[112px_1fr]">
+                <div className="flex self-stretch">
+                  <div className="grid w-full flex-1 grid-rows-[52px_1fr_52px] gap-2 rounded-xl border border-[#9d2235]/35 bg-[#fff6f7] p-2 font-mono text-[11px] text-[#9d2235]">
+                    <div className="rounded-md border border-dashed border-[#9d2235]/35 bg-white/85 py-1 text-center text-[10px] uppercase tracking-wide text-[#8d3445]">Door</div>
+                    <div className="grid place-items-center rounded-md border border-[#9d2235]/25 bg-white/95 px-1 py-2 shadow-sm">
+                      <span className="[writing-mode:vertical-rl] rotate-180 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7b2434]">Smart Board</span>
+                    </div>
+                    <div className="rounded-md border border-dashed border-[#9d2235]/35 bg-white/85 py-1 text-center text-[10px] uppercase tracking-wide text-[#8d3445]">Door</div>
+                  </div>
                 </div>
 
-                <div className="rounded-xl border border-[#9d2235]/20 bg-white p-3">
-                  <div className="overflow-x-auto">
-                    <div className="min-w-[760px]">
-                      <Lab2Layout groupedRows={rows} onSelect={onSelect} selectedId={selectedId} />
-                    </div>
-                  </div>
+                <div className="space-y-4">
+                  {lab2Sections.map((section) => {
+                    const sectionAssets = grouped[section];
+                    const rows = sectionAssets.reduce((acc, item) => {
+                      if (!acc[item.row_num]) acc[item.row_num] = [];
+                      acc[item.row_num].push(item);
+                      return acc;
+                    }, {});
+
+                    return (
+                      <div key={section} className="rounded-2xl border border-[#9d2235]/20 bg-[#fffdfd] p-4">
+                        <div className="mb-3 flex items-center justify-between">
+                          <h3 className="font-mono text-xs uppercase tracking-[0.12em] text-gray-700">LAB {section}</h3>
+                          <p className="font-mono text-[11px] text-gray-500">2 wall facing rows x 10 PCs</p>
+                        </div>
+
+                        <div className="rounded-xl border border-[#9d2235]/20 bg-white p-3">
+                          <div className="overflow-x-auto">
+                            <div className="min-w-[760px]">
+                              <Lab2Layout groupedRows={rows} onSelect={onSelect} selectedId={selectedId} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
-          })
+          })()
         : (() => {
             const leftRows = buildRows(
               (grouped.L || []).reduce((acc, item) => {
