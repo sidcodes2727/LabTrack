@@ -403,7 +403,8 @@ router.get('/export', async (req, res, next) => {
       const unresolvedRatio = total ? (byStatus.pending + byStatus.in_progress) / total : 0;
       const highRatio = total ? byPriority.High / total : 0;
       const concentration = total && topLabs.length ? topLabs[0][1] / total : 0;
-      const riskScore = Math.round((unresolvedRatio * 45 + highRatio * 35 + concentration * 20) * 100);
+      const rawRiskScore = unresolvedRatio * 45 + highRatio * 35 + concentration * 20;
+      const riskScore = Math.max(0, Math.min(100, Math.round(rawRiskScore)));
 
       const activeFilters = [
         ['Lab', lab],
