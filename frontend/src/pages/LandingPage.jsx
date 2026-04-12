@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import BrandLogo from '../components/BrandLogo';
+import { api } from '../lib/api';
 
 const BOOT_SEEN_KEY = 'labtrack_boot_seen';
 
@@ -127,6 +128,32 @@ const sectionReveal = {
 
 const sectionViewport = { once: true, amount: 0.2 };
 
+const FALLBACK_LIVE_SNAPSHOT = {
+  snapshot: {
+    working: 82,
+    maintenance: 12,
+    faulty: 6,
+    summary:
+      'Complaints move from report to resolution with visible status transitions, making communication clear for students and actionable for administrators.'
+  },
+  labStatuses: [
+    { id: 'LAB 2', state: 'maint' },
+    { id: 'LAB 3A', state: 'ok' },
+    { id: 'LAB 3B', state: 'fault' }
+  ],
+  recentActivity: [
+    'Lab 2 • PC-16 moved to In Progress',
+    'Lab 1 • New complaint filed for PC-04',
+    'Lab 5 • PC-09 marked Resolved'
+  ]
+};
+
+const clampPercent = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.min(100, Math.round(numeric)));
+};
+
 export default function LandingPage({ session }) {
   const shouldBootSequence = useMemo(() => {
     if (session) return false;
@@ -140,6 +167,7 @@ export default function LandingPage({ session }) {
 
   const [phase, setPhase] = useState(() => (shouldBootSequence ? 'fault' : 'online'));
   const [showLanding, setShowLanding] = useState(() => !shouldBootSequence);
+  const [liveSnapshot, setLiveSnapshot] = useState(FALLBACK_LIVE_SNAPSHOT);
 
   const primaryPath = useMemo(() => {
     if (!session) return '/login';
@@ -164,6 +192,61 @@ export default function LandingPage({ session }) {
 
     return () => timers.forEach((timer) => clearTimeout(timer));
   }, [shouldBootSequence]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadLandingSnapshot = async () => {
+      try {
+        const { data } = await api.get('/assets/landing-snapshot');
+        if (!mounted || !data) return;
+
+        const safeSnapshot = {
+          working: clampPercent(data.snapshot?.working),
+          maintenance: clampPercent(data.snapshot?.maintenance),
+          faulty: clampPercent(data.snapshot?.faulty),
+          summary: data.snapshot?.summary || FALLBACK_LIVE_SNAPSHOT.snapshot.summary
+        };
+
+        const safeLabStatuses = (Array.isArray(data.labStatuses) ? data.labStatuses : [])
+          .filter((item) => item?.id)
+          .map((item) => ({
+            id: String(item.id),
+            state: item.state === 'ok' || item.state === 'maint' || item.state === 'fault' ? item.state : 'ok'
+          }));
+
+        const safeRecentActivity = (Array.isArray(data.recentActivity) ? data.recentActivity : [])
+          .filter((line) => typeof line === 'string' && line.trim().length > 0)
+          .slice(0, 3);
+
+        setLiveSnapshot({
+          snapshot: safeSnapshot,
+          labStatuses: safeLabStatuses.length ? safeLabStatuses : FALLBACK_LIVE_SNAPSHOT.labStatuses,
+          recentActivity: safeRecentActivity.length ? safeRecentActivity : FALLBACK_LIVE_SNAPSHOT.recentActivity
+        });
+      } catch {
+        // Keep fallback values for resilient first paint.
+      }
+    };
+
+    loadLandingSnapshot();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const snapshotBars = [
+    { label: 'Working Nodes', value: liveSnapshot.snapshot.working, tone: 'bg-[#4ca875]' },
+    { label: 'Under Maintenance', value: liveSnapshot.snapshot.maintenance, tone: 'bg-[#d8a14a]' },
+    { label: 'Critical Faults', value: liveSnapshot.snapshot.faulty, tone: 'bg-[#d34e63]' }
+  ];
+
+  const labStateTone = {
+    ok: 'bg-[#4ca875]',
+    maint: 'bg-[#d8a14a]',
+    fault: 'bg-[#d34e63]'
+  };
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f6f2f0] text-[#20181c]">
@@ -419,11 +502,7 @@ export default function LandingPage({ session }) {
                     </div>
 
                     <div className="space-y-3">
-                      {[
-                        { label: 'Working Nodes', value: 82, tone: 'bg-[#4ca875]' },
-                        { label: 'Under Maintenance', value: 12, tone: 'bg-[#d8a14a]' },
-                        { label: 'Critical Faults', value: 6, tone: 'bg-[#d34e63]' }
-                      ].map((item) => (
+                      {snapshotBars.map((item) => (
                         <div key={item.label}>
                           <div className="mb-1 flex items-center justify-between text-xs">
                             <span className="text-[#5e4e55]">{item.label}</span>
@@ -442,15 +521,11 @@ export default function LandingPage({ session }) {
                     </div>
 
                     <div className="mt-5 rounded-2xl border border-[#9d2235]/12 bg-[#fff7f6] p-3 text-sm text-[#5f5358]">
-                      Complaints move from report to resolution with visible status transitions, making communication clear for students and actionable for administrators.
+                      {liveSnapshot.snapshot.summary}
                     </div>
 
                     <div className="mt-4 grid grid-cols-3 gap-2">
-                      {[
-                        { id: 'LAB 2', state: 'maint', tone: 'bg-[#d8a14a]' },
-                        { id: 'LAB 3A', state: 'ok', tone: 'bg-[#4ca875]' },
-                        { id: 'LAB 3B', state: 'fault', tone: 'bg-[#d34e63]' }
-                      ].map((node, index) => (
+                      {liveSnapshot.labStatuses.map((node, index) => (
                         <motion.div
                           key={node.id}
                           initial={{ opacity: 0, y: 6 }}
@@ -460,7 +535,7 @@ export default function LandingPage({ session }) {
                         >
                           <p className="text-[11px] font-semibold text-[#3b2a31]">{node.id}</p>
                           <div className="mt-1 flex items-center gap-1.5">
-                            <span className={`h-2 w-2 rounded-full ${node.tone}`} />
+                            <span className={`h-2 w-2 rounded-full ${labStateTone[node.state] || labStateTone.ok}`} />
                             <span className="text-[10px] uppercase tracking-[0.08em] text-[#8f6670]">{node.state}</span>
                           </div>
                         </motion.div>
@@ -470,11 +545,7 @@ export default function LandingPage({ session }) {
                     <div className="mt-4 rounded-2xl border border-[#9d2235]/12 bg-white/95 p-3">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8f6670]">Recent Activity</p>
                       <div className="mt-2 space-y-2">
-                        {[
-                          'Lab 2 • PC-16 moved to In Progress',
-                          'Lab 1 • New complaint filed for PC-04',
-                          'Lab 5 • PC-09 marked Resolved'
-                        ].map((line, idx) => (
+                        {liveSnapshot.recentActivity.map((line, idx) => (
                           <div key={line} className="flex items-center gap-2 rounded-lg bg-[#faf4f4] px-2.5 py-2">
                             <span className={`h-1.5 w-1.5 rounded-full ${idx === 2 ? 'bg-[#4ca875]' : idx === 1 ? 'bg-[#d34e63]' : 'bg-[#d8a14a]'}`} />
                             <p className="text-xs text-[#5a4b53]">{line}</p>
