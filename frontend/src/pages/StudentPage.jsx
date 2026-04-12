@@ -429,13 +429,13 @@ export default function StudentPage({ session, onLogout }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="relative z-10 grid h-[calc(100vh-120px)] lg:grid-cols-[1fr_340px]"
+              className="relative z-10 grid h-[calc(100vh-120px)] min-h-0 overflow-hidden lg:grid-cols-[1fr_340px]"
             >
               <motion.section
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.35, ease: 'easeOut' }}
-                className="overflow-hidden border-r border-[#9d2235]/10"
+                className="flex min-h-0 flex-col overflow-hidden border-r border-[#9d2235]/10"
               >
                 <div className="flex overflow-x-auto border-b border-[#9d2235]/10 bg-white px-4">
                   {labs.map((lab) => {
@@ -456,7 +456,7 @@ export default function StudentPage({ session, onLogout }) {
                   })}
                 </div>
 
-                <div className="h-[calc(100%-56px)] overflow-y-auto p-5">
+                <div className="min-h-0 flex-1 overflow-y-auto p-5">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <h2 className="text-lg font-semibold">Lab Layout - {selectedLab}</h2>
@@ -490,7 +490,7 @@ export default function StudentPage({ session, onLogout }) {
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.35, ease: 'easeOut', delay: 0.05 }}
-                className="flex h-full flex-col bg-white"
+                className="flex h-full min-h-0 flex-col bg-white"
               >
                 <div className="grid grid-cols-2 border-b border-[#9d2235]/10">
                   <button
@@ -507,7 +507,7 @@ export default function StudentPage({ session, onLogout }) {
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4">
+                <div className="min-h-0 flex-1 overflow-y-auto p-4">
                   <AnimatePresence mode="wait" initial={false}>
                     <motion.div
                       key={`${panelTab}-${selectedAsset?.id || 'none'}`}
@@ -515,6 +515,7 @@ export default function StudentPage({ session, onLogout }) {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.22, ease: 'easeOut' }}
+                      className="min-h-full"
                     >
                       {panelTab === 'details' && (
                         <h3 className="mb-2 text-sm font-semibold">Selected Asset</h3>
