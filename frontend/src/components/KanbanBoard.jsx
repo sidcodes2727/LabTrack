@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { DndContext, DragOverlay, PointerSensor, closestCorners, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { api } from '../lib/api';
+
+import ConfirmModal from './ConfirmModal';
 
 const columns = [
   { key: 'pending', title: 'Pending' },
@@ -27,6 +29,7 @@ export default function KanbanBoard({ items, onRefresh }) {
   const [boardItems, setBoardItems] = useState(items || []);
   const [activeId, setActiveId] = useState(null);
   const [detailCard, setDetailCard] = useState(null);
+  const [confirmData, setConfirmData] = useState(null); // {id, from, to}
 
   useEffect(() => {
     setBoardItems(items || []);
@@ -103,8 +106,30 @@ export default function KanbanBoard({ items, onRefresh }) {
       return;
     }
 
+
+    // Confirm for both in_progress→resolved and pending→resolved
+    if ((originalStatus === 'in_progress' || originalStatus === 'pending') && droppedStatus === 'resolved') {
+      setConfirmData({ id: active.id, from: originalStatus, to: droppedStatus });
+      moveCardLocal(active.id, droppedStatus); // visually move for feedback
+      return;
+    }
+
     if (droppedStatus && originalStatus && droppedStatus !== originalStatus) {
       move(active.id, droppedStatus);
+    }
+  };
+
+  const handleConfirm = () => {
+    if (confirmData) {
+      move(confirmData.id, confirmData.to);
+      setConfirmData(null);
+    }
+  };
+
+  const handleCancel = () => {
+    if (confirmData) {
+      moveCardLocal(confirmData.id, confirmData.from); // revert
+      setConfirmData(null);
     }
   };
 
@@ -115,25 +140,36 @@ export default function KanbanBoard({ items, onRefresh }) {
   };
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragEnd={onDragEnd}
-    >
-      <div className="grid gap-4 md:grid-cols-3">
-        {columns.map((col) => (
-          <KanbanColumn key={col.key} id={col.key} title={col.title} cards={grouped[col.key]} onOpenDetail={openDetail} />
-        ))}
-      </div>
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDragEnd={onDragEnd}
+      >
+        <div className="grid gap-4 md:grid-cols-3">
+          {columns.map((col) => (
+            <KanbanColumn key={col.key} id={col.key} title={col.title} cards={grouped[col.key]} onOpenDetail={openDetail} />
+          ))}
+        </div>
 
-      <DragOverlay>
-        {activeCard ? <KanbanCard card={activeCard} dragging /> : null}
-      </DragOverlay>
+        <DragOverlay>
+          {activeCard ? <KanbanCard card={activeCard} dragging /> : null}
+        </DragOverlay>
 
-      <ComplaintDetailModal card={detailCard} onClose={() => setDetailCard(null)} />
-    </DndContext>
+        <ComplaintDetailModal card={detailCard} onClose={() => setDetailCard(null)} />
+      </DndContext>
+      <ConfirmModal
+        open={!!confirmData}
+        onClose={handleCancel}
+        onConfirm={handleConfirm}
+        title="Mark as Resolved?"
+        message="Are you sure you want to mark this complaint as resolved? This action cannot be undone."
+        confirmText="Yes, Resolve"
+        cancelText="Cancel"
+      />
+    </>
   );
 }
 

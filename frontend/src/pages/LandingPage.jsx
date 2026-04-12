@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring } from 'framer-motion';
 import {
   BarChart3,
   Bot,
@@ -155,6 +155,9 @@ const clampPercent = (value) => {
 };
 
 export default function LandingPage({ session }) {
+  const snapshotCardRef = useRef(null);
+  const prefersReducedMotion = useReducedMotion();
+
   const shouldBootSequence = useMemo(() => {
     if (session) return false;
     if (typeof window === 'undefined') return false;
@@ -168,6 +171,16 @@ export default function LandingPage({ session }) {
   const [phase, setPhase] = useState(() => (shouldBootSequence ? 'fault' : 'online'));
   const [showLanding, setShowLanding] = useState(() => !shouldBootSequence);
   const [liveSnapshot, setLiveSnapshot] = useState(FALLBACK_LIVE_SNAPSHOT);
+
+  const snapshotRotateX = useMotionValue(0);
+  const snapshotRotateY = useMotionValue(0);
+  const snapshotOffsetX = useMotionValue(0);
+  const snapshotOffsetY = useMotionValue(0);
+
+  const snapshotRotateXSpring = useSpring(snapshotRotateX, { stiffness: 130, damping: 18, mass: 0.45 });
+  const snapshotRotateYSpring = useSpring(snapshotRotateY, { stiffness: 130, damping: 18, mass: 0.45 });
+  const snapshotOffsetXSpring = useSpring(snapshotOffsetX, { stiffness: 140, damping: 20, mass: 0.5 });
+  const snapshotOffsetYSpring = useSpring(snapshotOffsetY, { stiffness: 140, damping: 20, mass: 0.5 });
 
   const primaryPath = useMemo(() => {
     if (!session) return '/login';
@@ -246,6 +259,29 @@ export default function LandingPage({ session }) {
     ok: 'bg-[#4ca875]',
     maint: 'bg-[#d8a14a]',
     fault: 'bg-[#d34e63]'
+  };
+
+  const handleSnapshotParallax = (event) => {
+    if (prefersReducedMotion || typeof window === 'undefined' || window.innerWidth < 1024) return;
+
+    const card = snapshotCardRef.current;
+    if (!card) return;
+
+    const rect = card.getBoundingClientRect();
+    const relativeX = (event.clientX - rect.left) / rect.width - 0.5;
+    const relativeY = (event.clientY - rect.top) / rect.height - 0.5;
+
+    snapshotRotateY.set(relativeX * 10);
+    snapshotRotateX.set(relativeY * -10);
+    snapshotOffsetX.set(relativeX * 3);
+    snapshotOffsetY.set(relativeY * 2);
+  };
+
+  const resetSnapshotParallax = () => {
+    snapshotRotateX.set(0);
+    snapshotRotateY.set(0);
+    snapshotOffsetX.set(0);
+    snapshotOffsetY.set(0);
   };
 
   return (
@@ -491,9 +527,21 @@ export default function LandingPage({ session }) {
                   </div>
 
                   <motion.div
+                    ref={snapshotCardRef}
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.28 }}
+                    onMouseMove={handleSnapshotParallax}
+                    onMouseLeave={resetSnapshotParallax}
+                    style={{
+                      rotateX: snapshotRotateXSpring,
+                      rotateY: snapshotRotateYSpring,
+                      x: snapshotOffsetXSpring,
+                      y: snapshotOffsetYSpring,
+                      transformPerspective: 1200,
+                      transformStyle: 'preserve-3d',
+                      willChange: 'transform'
+                    }}
                     className="self-start rounded-[26px] border border-[#9d2235]/14 bg-white/85 p-5"
                   >
                     <div className="mb-4 flex items-center justify-between">
