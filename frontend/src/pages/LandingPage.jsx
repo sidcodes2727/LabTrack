@@ -18,6 +18,8 @@ import {
 import { Link } from 'react-router-dom';
 import BrandLogo from '../components/BrandLogo';
 
+const BOOT_SEEN_KEY = 'labtrack_boot_seen';
+
 const phaseOrder = ['fault', 'repair', 'online'];
 
 const phaseMeta = {
@@ -126,8 +128,18 @@ const sectionReveal = {
 const sectionViewport = { once: true, amount: 0.2 };
 
 export default function LandingPage({ session }) {
-  const [phase, setPhase] = useState('fault');
-  const [showLanding, setShowLanding] = useState(false);
+  const shouldBootSequence = useMemo(() => {
+    if (session) return false;
+    if (typeof window === 'undefined') return false;
+
+    const hasSeenBoot = window.sessionStorage.getItem(BOOT_SEEN_KEY) === '1';
+    const hasInPageHash = Boolean(window.location.hash);
+
+    return !hasSeenBoot && !hasInPageHash;
+  }, [session]);
+
+  const [phase, setPhase] = useState(() => (shouldBootSequence ? 'fault' : 'online'));
+  const [showLanding, setShowLanding] = useState(() => !shouldBootSequence);
 
   const primaryPath = useMemo(() => {
     if (!session) return '/login';
@@ -135,6 +147,15 @@ export default function LandingPage({ session }) {
   }, [session]);
 
   useEffect(() => {
+    if (!shouldBootSequence) {
+      setPhase('online');
+      setShowLanding(true);
+      return undefined;
+    }
+
+    // Mark once so browser back/forward does not replay the full intro sequence.
+    window.sessionStorage.setItem(BOOT_SEEN_KEY, '1');
+
     const timers = [
       setTimeout(() => setPhase('repair'), 1300),
       setTimeout(() => setPhase('online'), 2800),
@@ -142,7 +163,7 @@ export default function LandingPage({ session }) {
     ];
 
     return () => timers.forEach((timer) => clearTimeout(timer));
-  }, []);
+  }, [shouldBootSequence]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f6f2f0] text-[#20181c]">

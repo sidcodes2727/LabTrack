@@ -1,5 +1,4 @@
-import { useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { clearStoredSession, getStoredSession, setStoredSession } from './lib/auth';
 import LandingPage from './pages/LandingPage.jsx';
@@ -13,20 +12,26 @@ const ProtectedRoute = ({ allowedRoles, session, children }) => {
   return children;
 };
 
-const AnimatedPage = ({ children }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 14, filter: 'blur(6px)' }}
-    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-    exit={{ opacity: 0.35, y: -8, filter: 'blur(2px)' }}
-    transition={{ duration: 0.35, ease: 'easeOut' }}
-  >
-    {children}
-  </motion.div>
-);
+const AnimatedPage = ({ children }) => <>{children}</>;
 
 export default function App() {
   const [session, setSession] = useState(getStoredSession());
   const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.slice(1);
+      requestAnimationFrame(() => {
+        const target = document.getElementById(id);
+        if (target) {
+          target.scrollIntoView({ block: 'start' });
+        }
+      });
+      return;
+    }
+
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location.pathname, location.hash]);
 
   const authApi = useMemo(
     () => ({
@@ -44,44 +49,42 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f6f2f0] text-[#20181c]">
-      <AnimatePresence mode="sync" initial={false}>
-        <Routes location={location} key={location.pathname}>
-          <Route path="/" element={<AnimatedPage><LandingPage session={session} /></AnimatedPage>} />
-          <Route
-            path="/login"
-            element={
-              <AnimatedPage>
-                {session ? (
-                  <Navigate to={session.user.role === 'admin' ? '/admin' : '/student'} replace />
-                ) : (
-                  <LoginPage onAuth={authApi.signIn} />
-                )}
-              </AnimatedPage>
-            }
-          />
-          <Route
-            path="/student"
-            element={
-              <AnimatedPage>
-                <ProtectedRoute allowedRoles={['student']} session={session}>
-                  <StudentPage session={session} onLogout={authApi.signOut} />
-                </ProtectedRoute>
-              </AnimatedPage>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <AnimatedPage>
-                <ProtectedRoute allowedRoles={['admin']} session={session}>
-                  <AdminPage session={session} onLogout={authApi.signOut} />
-                </ProtectedRoute>
-              </AnimatedPage>
-            }
-          />
-          <Route path="*" element={<Navigate to={session ? (session.user.role === 'admin' ? '/admin' : '/student') : '/'} replace />} />
-        </Routes>
-      </AnimatePresence>
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<AnimatedPage><LandingPage session={session} /></AnimatedPage>} />
+        <Route
+          path="/login"
+          element={
+            <AnimatedPage>
+              {session ? (
+                <Navigate to={session.user.role === 'admin' ? '/admin' : '/student'} replace />
+              ) : (
+                <LoginPage onAuth={authApi.signIn} />
+              )}
+            </AnimatedPage>
+          }
+        />
+        <Route
+          path="/student"
+          element={
+            <AnimatedPage>
+              <ProtectedRoute allowedRoles={['student']} session={session}>
+                <StudentPage session={session} onLogout={authApi.signOut} />
+              </ProtectedRoute>
+            </AnimatedPage>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <AnimatedPage>
+              <ProtectedRoute allowedRoles={['admin']} session={session}>
+                <AdminPage session={session} onLogout={authApi.signOut} />
+              </ProtectedRoute>
+            </AnimatedPage>
+          }
+        />
+        <Route path="*" element={<Navigate to={session ? (session.user.role === 'admin' ? '/admin' : '/student') : '/'} replace />} />
+      </Routes>
     </div>
   );
 }
