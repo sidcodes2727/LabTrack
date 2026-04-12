@@ -145,7 +145,25 @@ router.get('/detail/:systemId', authenticate, async (req, res, next) => {
 
     if (historyError) throw historyError;
 
-    return res.json({ asset, history });
+    const { data: complaints, error: complaintsError } = await supabase
+      .from('complaints')
+      .select('id, user_id, description, priority, status, image_url, created_at, updated_at, support_count, supporter_ids, users(name)')
+      .eq('asset_id', asset.id)
+      .order('created_at', { ascending: false });
+
+    if (complaintsError) throw complaintsError;
+
+    const enrichedComplaints = (complaints || []).map((item) => {
+      const supporterIds = item.supporter_ids || [];
+      return {
+        ...item,
+        support_count: Number.isFinite(item.support_count) ? item.support_count : supporterIds.length,
+        has_supported: supporterIds.includes(req.user.id),
+        supporter_ids: undefined
+      };
+    });
+
+    return res.json({ asset, history, complaints: enrichedComplaints });
   } catch (error) {
     return next(error);
   }

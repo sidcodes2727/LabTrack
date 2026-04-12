@@ -57,6 +57,9 @@ export default function ComplaintModal({ open, onClose, asset, onDone }) {
             className="w-full max-w-lg space-y-3 rounded-3xl bg-white p-6"
           >
             <h3 className="text-xl font-semibold">Report Issue for {asset.system_id}</h3>
+            <p className="rounded-xl border border-[#9d2235]/10 bg-[#fff7f6] px-3 py-2 text-xs text-[#6d3242]">
+              Check Timeline first. If this issue is already active, use +1 support there instead of submitting a duplicate complaint.
+            </p>
             <textarea
               className="min-h-28 w-full rounded-2xl border border-gray-200 p-3"
               placeholder="Describe the issue"

@@ -63,6 +63,97 @@ router.get('/notifications', authenticate, async (req, res, next) => {
   }
 });
 
+router.post('/:id/plus', authenticate, async (req, res, next) => {
+  try {
+    const { data: complaint, error: complaintError } = await supabase
+      .from('complaints')
+      .select('id, asset_id, user_id, status, support_count, supporter_ids, assets(system_id, lab, section)')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (complaintError) throw complaintError;
+
+    if (!complaint) {
+      return res.status(404).json({ message: 'Complaint not found.' });
+    }
+
+    if (complaint.status === 'resolved') {
+      return res.status(400).json({ message: 'Cannot support a resolved complaint.' });
+    }
+
+    if (complaint.user_id === req.user.id) {
+      return res.status(400).json({ message: 'Reporter cannot +1 their own complaint.' });
+    }
+
+    const supporters = complaint.supporter_ids || [];
+    const alreadySupported = supporters.includes(req.user.id);
+    if (alreadySupported) {
+      return res.json({
+        complaintId: complaint.id,
+        support_count: Number.isFinite(complaint.support_count) ? complaint.support_count : supporters.length,
+        has_supported: true,
+        message: 'You already supported this complaint.'
+      });
+    }
+
+    const nextSupporters = [...supporters, req.user.id];
+    const nextSupportCount = (Number.isFinite(complaint.support_count) ? complaint.support_count : supporters.length) + 1;
+
+    const { data: updatedComplaint, error: updateError } = await supabase
+      .from('complaints')
+      .update({
+        supporter_ids: nextSupporters,
+        support_count: nextSupportCount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', complaint.id)
+      .select('id, asset_id, support_count')
+      .single();
+
+    if (updateError) throw updateError;
+
+    const systemLabel = complaint.assets?.system_id || complaint.asset_id;
+    const locationLabel = complaint.assets ? `${complaint.assets.lab}/${complaint.assets.section}` : 'Unknown Lab';
+
+    await supabase.from('history').insert({
+      asset_id: complaint.asset_id,
+      event_type: 'Complaint +1',
+      details: `${req.user.name} confirmed an existing issue on ${systemLabel}. Support count is now ${nextSupportCount}.`
+    });
+
+    await supabase.from('notifications').insert({
+      title: 'Complaint received +1 support',
+      message: `${req.user.name} confirmed an existing issue on ${systemLabel} in ${locationLabel}. Support count: ${nextSupportCount}.`,
+      role_target: 'admin'
+    });
+
+    emitRoleUpdate('admin', {
+      type: 'complaint_supported',
+      complaintId: complaint.id,
+      assetId: complaint.asset_id,
+      userId: req.user.id,
+      supportCount: nextSupportCount
+    });
+
+    emitUserUpdate(req.user.id, {
+      type: 'complaint_supported',
+      complaintId: complaint.id,
+      assetId: complaint.asset_id,
+      userId: req.user.id,
+      supportCount: nextSupportCount
+    });
+
+    return res.json({
+      complaintId: updatedComplaint.id,
+      support_count: updatedComplaint.support_count,
+      has_supported: true,
+      message: 'Support added.'
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.post('/', authenticate, upload.single('image'), async (req, res, next) => {
   try {
     const { assetId, description, priority } = req.body;

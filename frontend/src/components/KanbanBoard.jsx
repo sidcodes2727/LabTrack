@@ -160,6 +160,12 @@ function KanbanColumn({ id, title, cards, onOpenDetail }) {
 
 function KanbanCard({ card, dragging = false, onOpenDetail }) {
   const isLocked = card.status === 'resolved';
+  const supportCount = Number.isFinite(card.support_count)
+    ? card.support_count
+    : Array.isArray(card.supporter_ids)
+      ? card.supporter_ids.length
+      : 0;
+  const affectedStudents = supportCount + 1;
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: card.id, disabled: isLocked });
   const [showPreview, setShowPreview] = useState(false);
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
@@ -196,6 +202,7 @@ function KanbanCard({ card, dragging = false, onOpenDetail }) {
         {card.description}
       </p>
       <p className="mt-2 text-xs text-gray-500">{card.assets?.lab} / {card.assets?.section}</p>
+      <p className="mt-1 text-xs font-medium text-[#6a3f49]">Affected Students: {affectedStudents}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-400">
         <span>Created: {formatDateTime(card.created_at)}</span>
         {card.updated_at && card.updated_at !== card.created_at && (
@@ -214,6 +221,13 @@ function KanbanCard({ card, dragging = false, onOpenDetail }) {
 }
 
 function ComplaintDetailModal({ card, onClose }) {
+  const supportCount = Number.isFinite(card?.support_count)
+    ? card.support_count
+    : Array.isArray(card?.supporter_ids)
+      ? card.supporter_ids.length
+      : 0;
+  const affectedStudents = supportCount + 1;
+
   return (
     <AnimatePresence>
       {card && (
@@ -259,6 +273,10 @@ function ComplaintDetailModal({ card, onClose }) {
               <div>
                 <p className="uppercase tracking-wide text-[#8b8392]">Priority</p>
                 <p className="mt-0.5 font-semibold text-[#221a26]">{card.priority || 'Medium'}</p>
+              </div>
+              <div>
+                <p className="uppercase tracking-wide text-[#8b8392]">Affected Students</p>
+                <p className="mt-0.5 font-semibold text-[#221a26]">{affectedStudents}</p>
               </div>
               <div>
                 <p className="uppercase tracking-wide text-[#8b8392]">Reported On</p>

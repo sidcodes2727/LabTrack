@@ -44,10 +44,13 @@ export default function StudentPage({ session, onLogout }) {
   const [assets, setAssets] = useState([]);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [history, setHistory] = useState([]);
+  const [assetComplaints, setAssetComplaints] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [panelTab, setPanelTab] = useState('details');
+  const [timelineComplaintFilter, setTimelineComplaintFilter] = useState('active');
+  const [supportingComplaintId, setSupportingComplaintId] = useState(null);
   const [studentView, setStudentView] = useState('current');
   const [myComplaints, setMyComplaints] = useState([]);
   const [complaintFilters, setComplaintFilters] = useState({
@@ -98,8 +101,10 @@ export default function StudentPage({ session, onLogout }) {
   const loadDetail = async (asset) => {
     setSelectedAsset(asset);
     setPanelTab('details');
+    setTimelineComplaintFilter('active');
     const { data } = await api.get(`/assets/detail/${asset.system_id}`);
     setHistory(data.history || []);
+    setAssetComplaints(data.complaints || []);
   };
 
   const refreshSelectedDetail = async () => {
@@ -107,11 +112,26 @@ export default function StudentPage({ session, onLogout }) {
     try {
       const { data } = await api.get(`/assets/detail/${selectedAsset.system_id}`);
       setHistory(data.history || []);
+      setAssetComplaints(data.complaints || []);
       if (data.asset) {
         setSelectedAsset((prev) => ({ ...(prev || {}), ...data.asset }));
       }
     } catch {
       // Keep current view if refresh fails.
+    }
+  };
+
+  const supportComplaint = async (complaintId) => {
+    if (!complaintId) return;
+    setSupportingComplaintId(complaintId);
+    try {
+      const { data } = await api.post(`/complaints/${complaintId}/plus`);
+      toast.success(data?.message || 'Support added');
+      await refreshSelectedDetail();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Unable to support complaint');
+    } finally {
+      setSupportingComplaintId(null);
     }
   };
 
@@ -225,6 +245,26 @@ export default function StudentPage({ session, onLogout }) {
     };
   }, [myComplaints]);
 
+  const activeTimelineComplaints = useMemo(
+    () => assetComplaints.filter((item) => item.status === 'pending' || item.status === 'in_progress'),
+    [assetComplaints]
+  );
+
+  const pastTimelineComplaints = useMemo(
+    () => assetComplaints.filter((item) => item.status === 'resolved'),
+    [assetComplaints]
+  );
+
+  const visibleTimelineComplaints = useMemo(
+    () => (timelineComplaintFilter === 'active' ? activeTimelineComplaints : pastTimelineComplaints),
+    [timelineComplaintFilter, activeTimelineComplaints, pastTimelineComplaints]
+  );
+
+  const visibleAssetHistory = useMemo(
+    () => history.filter((item) => (item.event_type || '').toLowerCase() !== 'complaint status updated'),
+    [history]
+  );
+
   const panelContent = useMemo(() => {
     if (panelTab === 'timeline') {
       if (!selectedAsset) {
@@ -232,27 +272,107 @@ export default function StudentPage({ session, onLogout }) {
       }
 
       return (
-        <div>
-          <h3 className="mb-5 text-[24px] font-medium tracking-tight text-[#1f1417]">Timeline - {selectedAsset.system_id}</h3>
-          <div className="space-y-1">
-            {history.map((item, index) => {
-              const normalized = (item.event_type || '').toLowerCase();
-              const tone = Object.keys(timelineEventTone).find((key) => normalized.includes(key));
+        <div className="space-y-4">
+          <h3 className="text-[24px] font-medium tracking-tight text-[#1f1417]">Timeline - {selectedAsset.system_id}</h3>
 
-              return (
-                <div key={item.id} className="relative pl-6">
-                  <span className={`absolute left-0 top-2.5 h-2.5 w-2.5 rounded-full ${timelineEventTone[tone] || 'bg-[#8a8290]'}`} />
-                  {index !== history.length - 1 && <span className="absolute left-[4px] top-5 h-[calc(100%-4px)] w-px bg-[#d9d3d0]" />}
-                  <div className="pb-5">
-                    <p className="text-[16px] font-semibold text-[#18131e]">{item.event_type}</p>
-                    <p className="mt-0.5 text-[14px] leading-snug text-[#5b5564]">{item.details}</p>
-                    <p className="mt-1 text-[12px] text-[#9b94a1]">{formatComplaintDate(item.event_date)}</p>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="rounded-2xl border border-[#9d2235]/15 bg-[#fff6f6] p-3 text-xs text-[#6d3242]">
+            Before reporting a new complaint, check active complaints below. If your issue already exists, press +1 instead of creating a duplicate report.
           </div>
-          {!history.length && <p className="text-sm text-gray-500">No timeline events yet.</p>}
+
+          <div className="rounded-2xl border border-[#9d2235]/10 bg-white p-3">
+            <div className="mb-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setTimelineComplaintFilter('active')}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  timelineComplaintFilter === 'active' ? 'bg-[#9d2235] text-white' : 'bg-[#f2ece8] text-[#5f5663]'
+                }`}
+              >
+                Active ({activeTimelineComplaints.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTimelineComplaintFilter('past')}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                  timelineComplaintFilter === 'past' ? 'bg-[#9d2235] text-white' : 'bg-[#f2ece8] text-[#5f5663]'
+                }`}
+              >
+                Past ({pastTimelineComplaints.length})
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {!visibleTimelineComplaints.length && (
+                <p className="rounded-xl border border-dashed border-[#9d2235]/20 bg-[#fffaf8] px-3 py-2 text-xs text-[#72677b]">
+                  No {timelineComplaintFilter === 'active' ? 'active' : 'past'} complaints found for this system.
+                </p>
+              )}
+
+              {visibleTimelineComplaints.map((item) => {
+                const isActive = item.status === 'pending' || item.status === 'in_progress';
+                const isSupporting = supportingComplaintId === item.id;
+                const isReporter = item.user_id === session.user.id;
+
+                return (
+                  <article key={item.id} className="rounded-xl border border-[#e2dad7] bg-[#faf6f3] p-3">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                        <span className={`rounded-full px-2.5 py-1 font-semibold uppercase tracking-wide ${complaintStatusConfig[item.status]?.tone || 'bg-[#ece9e7] text-[#615969]'}`}>
+                          {complaintStatusConfig[item.status]?.label || item.status}
+                        </span>
+                        <span className="rounded-full bg-[#efe8e7] px-2.5 py-1 font-semibold text-[#7d3042]">Priority: {item.priority || 'Medium'}</span>
+                        <span className="rounded-full bg-white px-2.5 py-1 text-[#5f5663]">Support: {item.support_count || 0}</span>
+                      </div>
+
+                      {isActive && (
+                        <button
+                          type="button"
+                          disabled={item.has_supported || isSupporting || isReporter}
+                          onClick={() => supportComplaint(item.id)}
+                          className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                            item.has_supported || isReporter
+                              ? 'cursor-not-allowed bg-emerald-100 text-emerald-700'
+                              : 'bg-[#9d2235] text-white hover:brightness-95 disabled:opacity-70'
+                          }`}
+                        >
+                          {isReporter ? 'Reporter' : item.has_supported ? 'Supported' : isSupporting ? 'Adding...' : '+1 Same Issue'}
+                        </button>
+                      )}
+                    </div>
+
+                    <p className="text-sm leading-snug text-[#50495a]">{item.description}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-[#8a8190]">
+                      <span>Reported: {formatComplaintDate(item.created_at)}</span>
+                      <span>By: {item.users?.name || 'Unknown'}</span>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#9d2235]/10 bg-white p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#72677b]">Asset Events</p>
+            <div className="space-y-1">
+              {visibleAssetHistory.map((item, index) => {
+                const normalized = (item.event_type || '').toLowerCase();
+                const tone = Object.keys(timelineEventTone).find((key) => normalized.includes(key));
+
+                return (
+                  <div key={item.id} className="relative pl-6">
+                    <span className={`absolute left-0 top-2.5 h-2.5 w-2.5 rounded-full ${timelineEventTone[tone] || 'bg-[#8a8290]'}`} />
+                    {index !== visibleAssetHistory.length - 1 && <span className="absolute left-[4px] top-5 h-[calc(100%-4px)] w-px bg-[#d9d3d0]" />}
+                    <div className="pb-5">
+                      <p className="text-[15px] font-semibold text-[#18131e]">{item.event_type}</p>
+                      <p className="mt-0.5 text-[13px] leading-snug text-[#5b5564]">{item.details}</p>
+                      <p className="mt-1 text-[12px] text-[#9b94a1]">{formatComplaintDate(item.event_date)}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {!visibleAssetHistory.length && <p className="text-sm text-gray-500">No timeline events yet.</p>}
+          </div>
         </div>
       );
     }
@@ -314,9 +434,23 @@ export default function StudentPage({ session, onLogout }) {
         >
           Report an Issue
         </button>
+        <p className="rounded-xl border border-[#9d2235]/10 bg-[#fffaf6] px-3 py-2 text-xs text-[#6f6578]">
+          Tip: Open Timeline first and support an active complaint with +1 if the same issue is already listed.
+        </p>
       </div>
     );
-  }, [panelTab, selectedAsset, history]);
+  }, [
+    panelTab,
+    selectedAsset,
+    history,
+    visibleAssetHistory,
+    visibleTimelineComplaints,
+    activeTimelineComplaints,
+    pastTimelineComplaints,
+    timelineComplaintFilter,
+    supportingComplaintId,
+    supportComplaint
+  ]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f5f0eb]">

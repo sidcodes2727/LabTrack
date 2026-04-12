@@ -58,6 +58,12 @@ create table if not exists complaints (
   updated_at timestamptz default now()
 );
 
+alter table complaints
+  add column if not exists support_count int not null default 0;
+
+alter table complaints
+  add column if not exists supporter_ids uuid[] not null default '{}'::uuid[];
+
 create table if not exists history (
   id uuid primary key default gen_random_uuid(),
   asset_id uuid not null references assets(id) on delete cascade,
@@ -84,6 +90,7 @@ create index if not exists idx_assets_lab_section on assets(lab, section);
 create index if not exists idx_assets_system_original on assets(system_id, original_id);
 create index if not exists idx_complaints_status_priority on complaints(status, priority);
 create index if not exists idx_complaints_created_at on complaints(created_at);
+create index if not exists idx_complaints_asset_status_created on complaints(asset_id, status, created_at desc);
 create index if not exists idx_notifications_user_role_created on notifications(user_id, role_target, created_at desc);
 
 insert into storage.buckets (id, name, public)

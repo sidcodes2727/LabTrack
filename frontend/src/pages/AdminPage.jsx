@@ -38,6 +38,7 @@ export default function AdminPage({ session, onLogout }) {
     query: '',
     status: '',
     priority: '',
+    affectedStudentsMin: '',
     lab: '',
     section: '',
     from: '',
@@ -125,6 +126,19 @@ export default function AdminPage({ session, onLogout }) {
 
     if (kanbanFilters.priority) {
       next = next.filter((item) => item.priority === kanbanFilters.priority);
+    }
+
+    if (kanbanFilters.affectedStudentsMin) {
+      const minAffected = Number(kanbanFilters.affectedStudentsMin);
+      next = next.filter((item) => {
+        const supportCount = Number.isFinite(item.support_count)
+          ? item.support_count
+          : Array.isArray(item.supporter_ids)
+            ? item.supporter_ids.length
+            : 0;
+        const affectedStudents = supportCount + 1;
+        return affectedStudents >= minAffected;
+      });
     }
 
     if (kanbanFilters.lab) {
@@ -227,6 +241,7 @@ export default function AdminPage({ session, onLogout }) {
       query: item.assets?.system_id || '',
       status: item.status,
       priority: '',
+      affectedStudentsMin: '',
       lab: '',
       section: '',
       from: '',
@@ -543,14 +558,14 @@ export default function AdminPage({ session, onLogout }) {
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-[#2a202b]">Filters</p>
                 <button
-                  onClick={() => setKanbanFilters({ query: '', status: '', priority: '', lab: '', section: '', from: '', to: '', sort: 'newest' })}
+                  onClick={() => setKanbanFilters({ query: '', status: '', priority: '', affectedStudentsMin: '', lab: '', section: '', from: '', to: '', sort: 'newest' })}
                   className="rounded-xl border border-[#9d2235]/20 px-3 py-1.5 text-xs text-[#5f5663] hover:border-[#9d2235]/40"
                 >
                   Reset
                 </button>
               </div>
 
-              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-6">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-7">
                 <label className="relative">
                   <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
@@ -581,6 +596,18 @@ export default function AdminPage({ session, onLogout }) {
                   <option value="Low">Low</option>
                   <option value="Medium">Medium</option>
                   <option value="High">High</option>
+                </select>
+
+                <select
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
+                  value={kanbanFilters.affectedStudentsMin}
+                  onChange={(e) => setKanbanFilters((p) => ({ ...p, affectedStudentsMin: e.target.value }))}
+                >
+                  <option value="">All Affected Students</option>
+                  <option value="2">2+ affected students</option>
+                  <option value="3">3+ affected students</option>
+                  <option value="5">5+ affected students</option>
+                  <option value="10">10+ affected students</option>
                 </select>
 
                 <select
