@@ -10,6 +10,7 @@ import { emitRoleUpdate, emitUserUpdate } from '../services/socket.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+const ALLOWED_KANBAN_STATUSES = ['pending', 'in_progress', 'resolved'];
 
 router.use(authenticate, authorize('admin'));
 
@@ -62,13 +63,25 @@ router.patch('/kanban/:id', async (req, res, next) => {
   try {
     const { status } = req.body;
 
+    if (!ALLOWED_KANBAN_STATUSES.includes(status)) {
+      return res.status(400).json({ message: 'Invalid complaint status.' });
+    }
+
     const { data: currentComplaint, error: currentComplaintError } = await supabase
       .from('complaints')
-      .select('id, asset_id, user_id, priority, description, assets(system_id, lab, section), users(name, email)')
+      .select('id, asset_id, user_id, priority, description, status, assets(system_id, lab, section), users(name, email)')
       .eq('id', req.params.id)
       .single();
 
     if (currentComplaintError) throw currentComplaintError;
+
+    if (currentComplaint.status === 'resolved' && status !== 'resolved') {
+      return res.status(400).json({ message: 'Resolved complaints are locked and cannot be moved back.' });
+    }
+
+    if (currentComplaint.status === status) {
+      return res.json({ ...currentComplaint, status });
+    }
 
     const { data, error } = await supabase
       .from('complaints')

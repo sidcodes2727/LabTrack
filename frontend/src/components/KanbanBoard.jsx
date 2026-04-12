@@ -60,13 +60,19 @@ export default function KanbanBoard({ items, onRefresh }) {
       await api.patch(`/admin/kanban/${id}`, { status });
       toast.success('Card moved');
       onRefresh();
-    } catch {
-      toast.error('Unable to move card');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Unable to move card');
       onRefresh();
     }
   };
 
   const onDragStart = (event) => {
+    const card = boardItems.find((item) => item.id === event.active.id);
+    if (card?.status === 'resolved') {
+      setActiveId(null);
+      return;
+    }
+
     setActiveId(event.active.id);
   };
 
@@ -78,6 +84,7 @@ export default function KanbanBoard({ items, onRefresh }) {
     const overId = over.id;
     const targetStatus = columnKeys.has(overId) ? overId : findColumnByCardId(overId);
 
+    if (sourceStatus === 'resolved') return;
     if (!sourceStatus || !targetStatus || sourceStatus === targetStatus) return;
     moveCardLocal(active.id, targetStatus);
   };
@@ -89,6 +96,12 @@ export default function KanbanBoard({ items, onRefresh }) {
 
     const droppedStatus = findColumnByCardId(active.id);
     const originalStatus = (items || []).find((item) => item.id === active.id)?.status;
+
+    if (originalStatus === 'resolved' && droppedStatus !== 'resolved') {
+      toast.error('Resolved complaints are locked and cannot be moved back.');
+      onRefresh();
+      return;
+    }
 
     if (droppedStatus && originalStatus && droppedStatus !== originalStatus) {
       move(active.id, droppedStatus);
@@ -146,7 +159,8 @@ function KanbanColumn({ id, title, cards, onOpenDetail }) {
 }
 
 function KanbanCard({ card, dragging = false, onOpenDetail }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: card.id });
+  const isLocked = card.status === 'resolved';
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: card.id, disabled: isLocked });
   const [showPreview, setShowPreview] = useState(false);
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
 
@@ -157,7 +171,11 @@ function KanbanCard({ card, dragging = false, onOpenDetail }) {
       style={style}
       whileHover={{ y: -3 }}
       className={`rounded-2xl border border-gray-100 bg-white p-3 shadow-sm ${
-        isDragging || dragging ? 'cursor-grabbing opacity-90 shadow-lg' : 'cursor-grab'
+        isDragging || dragging
+          ? 'cursor-grabbing opacity-90 shadow-lg'
+          : isLocked
+            ? 'cursor-not-allowed'
+            : 'cursor-grab'
       }`}
       onMouseEnter={() => setShowPreview(true)}
       onMouseLeave={() => setShowPreview(false)}
@@ -167,9 +185,12 @@ function KanbanCard({ card, dragging = false, onOpenDetail }) {
     >
       <div className="mb-2 flex items-center justify-between">
         <span className="font-mono text-xs text-gray-500">{card.assets?.system_id}</span>
-        <span className={`rounded-full px-2 py-1 text-xs ${priorityColor[card.priority] || 'bg-gray-100 text-gray-700'}`}>
-          {card.priority}
-        </span>
+        <div className="flex items-center gap-1">
+          {isLocked && <span className="rounded-full bg-[#ebe7e2] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#5e5664]">Locked</span>}
+          <span className={`rounded-full px-2 py-1 text-xs ${priorityColor[card.priority] || 'bg-gray-100 text-gray-700'}`}>
+            {card.priority}
+          </span>
+        </div>
       </div>
       <p className="line-clamp-2 text-sm text-gray-700">
         {card.description}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, KanbanSquare, LayoutDashboard, LogOut, Search } from 'lucide-react';
+import { AlertTriangle, Clock3, Download, KanbanSquare, LayoutDashboard, LogOut, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
@@ -10,6 +10,17 @@ import BrandLogo from '../components/BrandLogo';
 import { getSocket } from '../lib/socket';
 
 const priorityWeight = { High: 3, Medium: 2, Low: 1 };
+const prioritySlaHours = { High: 24, Medium: 48, Low: 72 };
+
+const formatAgeLabel = (hours) => {
+  if (!Number.isFinite(hours) || hours <= 0) return '<1h';
+
+  if (hours < 24) return `${Math.round(hours)}h`;
+
+  const days = Math.floor(hours / 24);
+  const remainingHours = Math.round(hours % 24);
+  return remainingHours ? `${days}d ${remainingHours}h` : `${days}d`;
+};
 
 export default function AdminPage({ session, onLogout }) {
   const [dashboard, setDashboard] = useState({ totals: {}, complaintsPerLab: [], byStatus: [] });
@@ -174,6 +185,55 @@ export default function AdminPage({ session, onLogout }) {
       high
     };
   }, [cards]);
+
+  const urgentComplaints = useMemo(() => {
+    const now = Date.now();
+
+    return cards
+      .filter((item) => item.status === 'pending' || item.status === 'in_progress')
+      .map((item) => {
+        const referenceDate = item.status === 'in_progress' ? item.updated_at || item.created_at : item.created_at;
+        const parsedDate = new Date(referenceDate || item.created_at).getTime();
+        const ageHours = Number.isNaN(parsedDate) ? 0 : (now - parsedDate) / (1000 * 60 * 60);
+        const slaHours = prioritySlaHours[item.priority] || 48;
+        const overdueHours = ageHours - slaHours;
+
+        return {
+          ...item,
+          ageHours,
+          slaHours,
+          overdueHours,
+          isBreached: overdueHours >= 0,
+          isNearBreach: overdueHours < 0 && Math.abs(overdueHours) <= 8
+        };
+      })
+      .filter((item) => item.isBreached || item.isNearBreach)
+      .sort((a, b) => {
+        if (a.isBreached !== b.isBreached) {
+          return a.isBreached ? -1 : 1;
+        }
+
+        if ((priorityWeight[b.priority] || 0) !== (priorityWeight[a.priority] || 0)) {
+          return (priorityWeight[b.priority] || 0) - (priorityWeight[a.priority] || 0);
+        }
+
+        return b.ageHours - a.ageHours;
+      });
+  }, [cards]);
+
+  const focusUrgentComplaint = (item) => {
+    setKanbanFilters((prev) => ({
+      ...prev,
+      query: item.assets?.system_id || '',
+      status: item.status,
+      priority: '',
+      lab: '',
+      section: '',
+      from: '',
+      to: '',
+      sort: 'oldest'
+    }));
+  };
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f5f0eb]">
@@ -387,6 +447,91 @@ export default function AdminPage({ session, onLogout }) {
                 <p className="text-xs uppercase tracking-wide text-gray-500">High Priority</p>
                 <p className="font-mono text-2xl text-amber-700">{complaintStats.high}</p>
               </div>
+            </motion.section>
+
+            <motion.section
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.32, ease: 'easeOut', delay: 0.05 }}
+              className="mb-4 rounded-3xl border border-[#9d2235]/15 bg-gradient-to-r from-[#fff7f3] via-[#fff3f3] to-[#fffaf4] p-4 shadow-glass"
+            >
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#9d2235]/10 text-accent">
+                    <AlertTriangle size={16} />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-[#2a202b]">Urgent Complaints First</p>
+                    <p className="text-xs text-[#645869]">SLA alerts for pending and in-progress tickets</p>
+                  </div>
+                </div>
+                <span className="rounded-full border border-[#9d2235]/25 bg-white px-3 py-1 text-xs font-semibold text-[#4b3e51]">
+                  {urgentComplaints.length} needs attention
+                </span>
+              </div>
+
+              {urgentComplaints.length ? (
+                <div className="space-y-2">
+                  {urgentComplaints.slice(0, 6).map((item) => (
+                    <div
+                      key={item.id}
+                      className={`flex flex-col gap-2 rounded-2xl border p-3 md:flex-row md:items-center md:justify-between ${
+                        item.isBreached ? 'border-[#9d2235]/35 bg-[#fff1ef]' : 'border-amber-300/70 bg-[#fff8eb]'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-sm text-[#221824]">{item.assets?.system_id || 'Unknown System'}</span>
+                          <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-[#5f5663]">
+                            {item.assets?.lab || 'Unknown'} / {item.assets?.section || 'N/A'}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                              item.priority === 'High'
+                                ? 'bg-red-100 text-red-700'
+                                : item.priority === 'Medium'
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : 'bg-emerald-100 text-emerald-700'
+                            }`}
+                          >
+                            {item.priority}
+                          </span>
+                          <span className="rounded-full bg-[#ede8ea] px-2 py-0.5 text-[11px] text-[#5b525f]">
+                            {item.status === 'in_progress' ? 'In Progress' : 'Pending'}
+                          </span>
+                        </div>
+                        <p className="line-clamp-1 text-sm text-[#463a47]">{item.description}</p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs text-[#4f4654]">
+                          <Clock3 size={12} /> Age {formatAgeLabel(item.ageHours)}
+                        </span>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            item.isBreached ? 'bg-[#9d2235] text-white' : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {item.isBreached
+                            ? `Overdue by ${formatAgeLabel(item.overdueHours)}`
+                            : `Due in ${formatAgeLabel(Math.abs(item.overdueHours))}`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => focusUrgentComplaint(item)}
+                          className="rounded-xl border border-[#9d2235]/25 bg-white px-3 py-1.5 text-xs font-semibold text-[#4e4456] hover:border-[#9d2235]/45"
+                        >
+                          Focus in Board
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                  No pending or in-progress complaints are near or beyond SLA right now.
+                </div>
+              )}
             </motion.section>
 
             <motion.section
