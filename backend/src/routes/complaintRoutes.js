@@ -6,6 +6,7 @@ import { classifyComplaint } from '../services/aiService.js';
 import { emitRoleUpdate, emitUserUpdate } from '../services/socket.js';
 
 const router = express.Router();
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -18,6 +19,42 @@ const upload = multer({
       return cb(new Error('Unsupported image format'));
     }
     return cb(null, true);
+  }
+});
+
+router.get('/public-overdue', async (req, res, next) => {
+  try {
+    const requestedDays = Number.parseInt(req.query.days, 10);
+    const requestedLimit = Number.parseInt(req.query.limit, 10);
+
+    const thresholdDays = Number.isFinite(requestedDays) && requestedDays > 0 ? Math.min(requestedDays, 30) : 3;
+    const maxRows = Number.isFinite(requestedLimit) && requestedLimit > 0 ? Math.min(requestedLimit, 20) : 6;
+    const cutoffIso = new Date(Date.now() - thresholdDays * DAY_IN_MS).toISOString();
+
+    const { data, error } = await supabase
+      .from('complaints')
+      .select('id, asset_id, description, status, created_at, assets(system_id, lab, section)')
+      .in('status', ['pending', 'in_progress'])
+      .lt('created_at', cutoffIso)
+      .order('created_at', { ascending: true })
+      .limit(maxRows);
+
+    if (error) throw error;
+
+    const now = Date.now();
+    const payload = (data || []).map((item) => {
+      const openedAt = new Date(item.created_at).getTime();
+      const ageDays = Number.isFinite(openedAt) ? Math.max(0, Math.floor((now - openedAt) / DAY_IN_MS)) : 0;
+
+      return {
+        ...item,
+        ageDays
+      };
+    });
+
+    return res.json(payload);
+  } catch (error) {
+    return next(error);
   }
 });
 

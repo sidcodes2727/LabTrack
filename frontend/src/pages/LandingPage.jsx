@@ -148,6 +148,8 @@ const FALLBACK_LIVE_SNAPSHOT = {
   ]
 };
 
+const OVERDUE_THRESHOLD_DAYS = 3;
+
 const clampPercent = (value) => {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return 0;
@@ -171,6 +173,8 @@ export default function LandingPage({ session }) {
   const [phase, setPhase] = useState(() => (shouldBootSequence ? 'fault' : 'online'));
   const [showLanding, setShowLanding] = useState(() => !shouldBootSequence);
   const [liveSnapshot, setLiveSnapshot] = useState(FALLBACK_LIVE_SNAPSHOT);
+  const [overdueComplaints, setOverdueComplaints] = useState([]);
+  const [isOverdueLoading, setIsOverdueLoading] = useState(false);
 
   const snapshotRotateX = useMotionValue(0);
   const snapshotRotateY = useMotionValue(0);
@@ -249,6 +253,36 @@ export default function LandingPage({ session }) {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadOverdueComplaints = async () => {
+      setIsOverdueLoading(true);
+
+      try {
+        const { data } = await api.get('/complaints/public-overdue', {
+          params: {
+            days: OVERDUE_THRESHOLD_DAYS,
+            limit: 6
+          }
+        });
+        if (!mounted) return;
+
+        setOverdueComplaints(Array.isArray(data) ? data : []);
+      } catch {
+        if (mounted) setOverdueComplaints([]);
+      } finally {
+        if (mounted) setIsOverdueLoading(false);
+      }
+    };
+
+    loadOverdueComplaints();
+
+    return () => {
+      mounted = false;
+    };
+  }, [session?.user?.id]);
+
   const snapshotBars = [
     { label: 'Working Nodes', value: liveSnapshot.snapshot.working, tone: 'bg-[#4ca875]' },
     { label: 'Under Maintenance', value: liveSnapshot.snapshot.maintenance, tone: 'bg-[#d8a14a]' },
@@ -286,9 +320,9 @@ export default function LandingPage({ session }) {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f6f2f0] text-[#20181c]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(157,34,53,0.16),transparent_31%),radial-gradient(circle_at_84%_10%,rgba(220,170,124,0.22),transparent_24%),radial-gradient(circle_at_88%_82%,rgba(157,34,53,0.12),transparent_29%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(157,34,53,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(157,34,53,0.05)_1px,transparent_1px)] bg-[size:42px_42px]" />
-      <div className="noise-overlay pointer-events-none absolute inset-0" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(157,34,53,0.16),transparent_31%),radial-gradient(circle_at_84%_10%,rgba(220,170,124,0.22),transparent_24%),radial-gradient(circle_at_88%_82%,rgba(157,34,53,0.12),transparent_29%)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(157,34,53,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(157,34,53,0.05)_1px,transparent_1px)] bg-[size:42px_42px]" />
+      <div className="noise-overlay pointer-events-none fixed inset-0" />
 
       <AnimatePresence mode="wait">
         {!showLanding ? (
@@ -453,7 +487,7 @@ export default function LandingPage({ session }) {
                       transition={{ delay: 0.12 }}
                       className="inline-flex items-center gap-2 rounded-full border border-[#9d2235]/18 bg-white px-3 py-1 text-xs uppercase tracking-[0.14em] text-[#8e3c4d]"
                     >
-                      <Sparkles size={13} /> Built For Campus Lab Reliability
+                      Built For Campus Lab Reliability
                     </motion.span>
 
                     <motion.h1
@@ -604,6 +638,65 @@ export default function LandingPage({ session }) {
                   </motion.div>
                 </div>
               </div>
+            </motion.section>
+
+            <motion.section
+              variants={sectionReveal}
+              initial="hidden"
+              whileInView="visible"
+              viewport={sectionViewport}
+              transition={{ duration: 0.45, ease: 'easeOut' }}
+              className="mx-auto mt-8 w-full max-w-6xl"
+            >
+              {(isOverdueLoading || overdueComplaints.length > 0) && (
+                <div className="rounded-3xl border border-[#d34e63]/18 bg-[linear-gradient(150deg,#fff8f8_0%,#fff2f4_100%)] p-5 shadow-[0_18px_38px_rgba(114,36,52,0.14)] md:p-6">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.14em] text-[#9d2235]">Attention Required</p>
+                      <h2 className="mt-2 flex items-center gap-2 text-2xl font-semibold text-[#2d1a20]">
+                        <AlertTriangle size={20} className="text-[#b03048]" />
+                        Overdue Complaints
+                      </h2>
+                      <p className="mt-1 text-sm text-[#6d4d57]">
+                        Open complaints older than {OVERDUE_THRESHOLD_DAYS} days are highlighted here for quick follow-up.
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-[#d34e63]/25 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-[#9d2235]">
+                      {overdueComplaints.length} flagged
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-3">
+                    {isOverdueLoading ? (
+                      <div className="rounded-2xl border border-[#d34e63]/16 bg-white/90 px-4 py-3 text-sm text-[#76565e]">
+                        Loading overdue complaints...
+                      </div>
+                    ) : (
+                      overdueComplaints.map((item) => {
+                        const description = item.description || 'No description provided.';
+                        const shortDescription = description.length > 96 ? `${description.slice(0, 96)}...` : description;
+                        const systemLabel = item.assets?.system_id || item.asset_id || 'Unknown System';
+                        const locationLabel = item.assets ? `${item.assets.lab}/${item.assets.section}` : 'Unknown Lab';
+
+                        return (
+                          <div
+                            key={item.id}
+                            className="rounded-2xl border border-[#d34e63]/16 bg-white/95 px-4 py-3 shadow-[0_8px_18px_rgba(157,34,53,0.08)]"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-sm font-semibold text-[#321d24]">{systemLabel} - {locationLabel}</p>
+                              <span className="rounded-full bg-[#fdecef] px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.06em] text-[#a02b42]">
+                                {item.ageDays} days open
+                              </span>
+                            </div>
+                            <p className="mt-2 text-sm leading-6 text-[#665159]">{shortDescription}</p>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
             </motion.section>
 
             <motion.section
