@@ -1,5 +1,9 @@
 import { io } from 'socket.io-client';
 
+// Use Vite environment variable for backend socket URL
+// Set VITE_SOCKET_URL in your .env file (e.g., VITE_SOCKET_URL=https://your-backend.com)
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000';
+
 let socketInstance = null;
 let currentToken = null;
 
@@ -16,7 +20,7 @@ export const getSocket = (token) => {
   }
 
   currentToken = token;
-  socketInstance = io('http://localhost:4000', {
+  socketInstance = io(SOCKET_URL, {
     transports: ['websocket'],
     auth: {
       token
