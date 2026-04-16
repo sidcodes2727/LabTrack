@@ -2,11 +2,13 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import http from 'http';
+import swaggerUi from 'swagger-ui-express';
 import authRoutes from './routes/authRoutes.js';
 import assetRoutes from './routes/assetRoutes.js';
 import complaintRoutes from './routes/complaintRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import { initSocket } from './services/socket.js';
+import openApiDocument from './docs/openapi.js';
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -27,6 +29,16 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/api/health', (_, res) => {
   res.json({ ok: true, service: 'LabTrack API' });
 });
+
+app.get('/api/openapi.json', (_req, res) => {
+  res.json(openApiDocument);
+});
+
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument, {
+  swaggerOptions: {
+    persistAuthorization: true
+  }
+}));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/assets', assetRoutes);

@@ -55,6 +55,32 @@ LabTrack is a full-stack SaaS-style web app for campus lab asset visualization, 
 5. URLs:
    - Frontend: `http://localhost:5173`
    - Backend: `http://localhost:4000`
+   - Swagger UI: `http://localhost:4000/api/docs`
+   - OpenAPI JSON: `http://localhost:4000/api/openapi.json`
+
+## API Testing With Swagger
+
+Use Swagger UI to test the complete backend API:
+
+1. Start the project:
+   - `npm run dev`
+
+2. Open Swagger UI:
+   - `http://localhost:4000/api/docs`
+
+3. Login first to get JWT token:
+   - Endpoint: `POST /auth/login`
+   - Use seeded credentials from this README.
+
+4. Authorize protected endpoints:
+   - Click the `Authorize` button in Swagger UI.
+   - Paste token in format: `Bearer <your_jwt_token>`
+
+5. Test route groups:
+   - Auth: signup/login
+   - Assets: labs, detail, landing snapshot
+   - Complaints: create, list, notifications, +1 support
+   - Admin: dashboard, kanban update, import, export, notifications
 
 ## Seeded Accounts
 
