@@ -23,19 +23,17 @@ const formatAgeLabel = (hours) => {
 };
 
 export default function AdminPage({ session, onLogout }) {
+  const exportLabOptions = ['LAB 2', 'LAB 3A', 'LAB 3B'];
   const [dashboard, setDashboard] = useState({ totals: {}, complaintsPerLab: [], byStatus: [] });
   const [cards, setCards] = useState([]);
   const [adminView, setAdminView] = useState('operations');
   const [exportFilters, setExportFilters] = useState({
     dataType: 'complaints',
     format: 'csv',
-    category: '',
     lab: '',
     status: '',
     assetStatus: '',
     priority: '',
-    section: '',
-    search: '',
     from: '',
     to: ''
   });
@@ -80,10 +78,47 @@ export default function AdminPage({ session, onLogout }) {
     };
   }, [session?.token]);
 
+  const buildExportParams = () => {
+    const baseParams = {
+      dataType: exportFilters.dataType,
+      format: exportFilters.format,
+      lab: exportFilters.lab || undefined,
+      from: exportFilters.from || undefined,
+      to: exportFilters.to || undefined
+    };
+
+    if (exportFilters.dataType === 'complaints') {
+      return {
+        ...baseParams,
+        status: exportFilters.status || undefined,
+        priority: exportFilters.priority || undefined
+      };
+    }
+
+    if (exportFilters.dataType === 'inventory') {
+      return {
+        ...baseParams,
+        assetStatus: exportFilters.assetStatus || undefined
+      };
+    }
+
+    return {
+      ...baseParams,
+      status: exportFilters.status || undefined,
+      priority: exportFilters.priority || undefined,
+      assetStatus: exportFilters.assetStatus || undefined
+    };
+  };
+
   const exportFile = async () => {
+    if (!exportFilters.lab) {
+      toast.error('Please select a lab to export.');
+      return;
+    }
+
     try {
       const { data } = await api.get('/admin/export', {
-        params: exportFilters,
+        params: buildExportParams(),
         responseType: 'blob'
       });
 
@@ -390,13 +425,10 @@ export default function AdminPage({ session, onLogout }) {
                     setExportFilters({
                       dataType: 'complaints',
                       format: 'csv',
-                      category: '',
                       lab: '',
                       status: '',
                       assetStatus: '',
                       priority: '',
-                      section: '',
-                      search: '',
                       from: '',
                       to: ''
                     })
@@ -411,7 +443,16 @@ export default function AdminPage({ session, onLogout }) {
                 <select
                   className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
                   value={exportFilters.dataType}
-                  onChange={(e) => setExportFilters((p) => ({ ...p, dataType: e.target.value }))}
+                  onChange={(e) => {
+                    const nextType = e.target.value;
+                    setExportFilters((p) => ({
+                      ...p,
+                      dataType: nextType,
+                      status: nextType === 'inventory' ? '' : p.status,
+                      priority: nextType === 'inventory' ? '' : p.priority,
+                      assetStatus: nextType === 'complaints' ? '' : p.assetStatus
+                    }));
+                  }}
                 >
                   <option value="complaints">Data Type: Complaints</option>
                   <option value="inventory">Data Type: Inventory</option>
@@ -428,65 +469,55 @@ export default function AdminPage({ session, onLogout }) {
                   <option value="pdf">Format: PDF</option>
                 </select>
 
-                <input
-                  placeholder="Category (Lab)"
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
-                  value={exportFilters.category}
-                  onChange={(e) => setExportFilters((p) => ({ ...p, category: e.target.value }))}
-                />
-
-                <input
-                  placeholder="Lab"
+                <select
                   className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
                   value={exportFilters.lab}
                   onChange={(e) => setExportFilters((p) => ({ ...p, lab: e.target.value }))}
-                />
-                <input
-                  placeholder="Section"
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
-                  value={exportFilters.section}
-                  onChange={(e) => setExportFilters((p) => ({ ...p, section: e.target.value }))}
-                />
-
-                <select
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
-                  value={exportFilters.status}
-                  onChange={(e) => setExportFilters((p) => ({ ...p, status: e.target.value }))}
                 >
-                  <option value="">Complaint Status: All</option>
-                  <option value="pending">Pending</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
+                  <option value="">Select Lab</option>
+                  {exportLabOptions.map((lab) => (
+                    <option key={lab} value={lab}>{lab}</option>
+                  ))}
                 </select>
 
-                <select
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
-                  value={exportFilters.priority}
-                  onChange={(e) => setExportFilters((p) => ({ ...p, priority: e.target.value }))}
-                >
-                  <option value="">Priority: All</option>
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                </select>
+                {(exportFilters.dataType === 'complaints' || exportFilters.dataType === 'both') && (
+                  <select
+                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
+                    value={exportFilters.status}
+                    onChange={(e) => setExportFilters((p) => ({ ...p, status: e.target.value }))}
+                  >
+                    <option value="">Complaint Status: All</option>
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
+                )}
 
-                <select
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
-                  value={exportFilters.assetStatus}
-                  onChange={(e) => setExportFilters((p) => ({ ...p, assetStatus: e.target.value }))}
-                >
-                  <option value="">Asset Status: All</option>
-                  <option value="working">Working</option>
-                  <option value="maintenance">Maintenance</option>
-                  <option value="faulty">Faulty</option>
-                </select>
+                {(exportFilters.dataType === 'complaints' || exportFilters.dataType === 'both') && (
+                  <select
+                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
+                    value={exportFilters.priority}
+                    onChange={(e) => setExportFilters((p) => ({ ...p, priority: e.target.value }))}
+                  >
+                    <option value="">Priority: All</option>
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                  </select>
+                )}
 
-                <input
-                  placeholder="Search keyword"
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
-                  value={exportFilters.search}
-                  onChange={(e) => setExportFilters((p) => ({ ...p, search: e.target.value }))}
-                />
+                {(exportFilters.dataType === 'inventory' || exportFilters.dataType === 'both') && (
+                  <select
+                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
+                    value={exportFilters.assetStatus}
+                    onChange={(e) => setExportFilters((p) => ({ ...p, assetStatus: e.target.value }))}
+                  >
+                    <option value="">Asset Status: All</option>
+                    <option value="working">Working</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="faulty">Faulty</option>
+                  </select>
+                )}
 
                 <input
                   type="date"
@@ -507,7 +538,7 @@ export default function AdminPage({ session, onLogout }) {
                   <Download size={16} /> Export {exportFilters.dataType} as {exportFilters.format.toUpperCase()}
                 </button>
                 <span className="text-xs text-gray-500">
-                  Export applies data type + filters and includes detailed admin-ready columns.
+                  Complaints: lab, complaint status, priority, date range. Inventory: lab, asset status, date range. Both: combined filters.
                 </span>
               </div>
             </motion.section>
