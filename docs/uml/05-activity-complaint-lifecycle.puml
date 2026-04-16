@@ -1,0 +1,41 @@
+@startuml
+
+title Activity Diagram - Complaint Lifecycle
+
+start
+:Student detects issue;
+:Open selected asset timeline;
+
+if (Existing active complaint?) then (yes)
+  :Student clicks +1 same issue;
+  :Increase support_count;
+  :Notify admin + realtime update;
+  stop
+else (no)
+  :Student submits new complaint;
+  :Optional image upload;
+  :AI suggests priority;
+  :Complaint created with status=pending;
+  :Asset marked faulty;
+  :Notify admin;
+endif
+
+:Admin reviews pending board;
+if (Accept into work?) then (yes)
+  :Move to in_progress;
+  :Asset marked maintenance;
+  :Broadcast realtime update;
+else (no)
+  :Keep in pending;
+  :Await action;
+endif
+
+:Admin resolves complaint;
+:Move to resolved;
+:Recompute asset status\n(working/faulty/maintenance based on other open complaints);
+:Create student notification;
+:Broadcast realtime update;
+
+stop
+
+@enduml

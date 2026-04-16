@@ -1,0 +1,45 @@
+@startuml
+autonumber
+
+title Sequence - Student Complaint Submission to Resolution
+
+actor Student
+participant "Frontend (React)" as FE
+participant "Backend API (Express)" as API
+participant "Gemini AI Service" as AI
+database "Supabase DB" as DB
+collections "Supabase Storage" as ST
+participant "Socket.IO" as IO
+actor Admin
+
+Student -> FE: Fill complaint form
+FE -> API: POST /complaints (multipart, JWT)
+API -> ST: Upload image (optional)
+ST --> API: image_url
+API -> AI: classifyComplaint(description)
+AI --> API: ai_priority
+API -> DB: Insert complaint(status=pending)
+API -> DB: Update asset status=faulty
+API -> DB: Insert history('Complaint Logged')
+API -> DB: Insert admin notification
+API -> IO: emitRoleUpdate('admin', complaint_created)
+API -> IO: emitRoleUpdate('student', complaint_created)
+API --> FE: 201 complaint
+FE --> Student: Show success + realtime refresh
+
+Admin -> FE: Open Kanban board
+FE -> API: PATCH /admin/kanban/{id} {status:resolved}
+API -> DB: Update complaint status=resolved
+API -> DB: Recompute asset status (working/faulty/maintenance)
+API -> DB: Insert history('Complaint Resolved')
+API -> DB: Insert student notification
+API -> IO: emitRoleUpdate('admin', complaint_updated)
+API -> IO: emitRoleUpdate('student', complaint_resolved)
+API -> IO: emitUserUpdate(reporter, complaint_resolved)
+API --> FE: 200 updated complaint
+FE --> Admin: Card moved to resolved
+
+IO --> FE: labtrack:update events
+FE --> Student: Notification + updated complaint state
+
+@enduml

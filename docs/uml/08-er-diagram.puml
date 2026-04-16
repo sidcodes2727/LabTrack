@@ -1,0 +1,76 @@
+@startuml
+hide circle
+skinparam linetype ortho
+
+title LabTrack ER Diagram
+
+entity "users" as users {
+  * id : uuid <<PK>>
+  --
+  name : text
+  email : text <<UQ>>
+  password_hash : text
+  role : user_role
+  created_at : timestamptz
+}
+
+entity "assets" as assets {
+  * id : uuid <<PK>>
+  --
+  system_id : text <<UQ>>
+  original_id : text <<UQ>>
+  lab : text
+  section : text
+  row_num : int
+  position : int
+  status : asset_status
+  cpu : text
+  ram : text
+  purchase_date : date
+  last_maintenance : date
+  created_at : timestamptz
+}
+
+entity "complaints" as complaints {
+  * id : uuid <<PK>>
+  --
+  asset_id : uuid <<FK>>
+  user_id : uuid <<FK>>
+  description : text
+  priority : priority_level
+  ai_priority : priority_level
+  image_url : text
+  status : complaint_status
+  support_count : int
+  supporter_ids : uuid[]
+  created_at : timestamptz
+  updated_at : timestamptz
+}
+
+entity "history" as history {
+  * id : uuid <<PK>>
+  --
+  asset_id : uuid <<FK>>
+  event_type : text
+  details : text
+  event_date : timestamptz
+  created_at : timestamptz
+}
+
+entity "notifications" as notifications {
+  * id : uuid <<PK>>
+  --
+  title : text
+  message : text
+  user_id : uuid <<FK nullable>>
+  role_target : user_role nullable
+  is_read : boolean
+  created_at : timestamptz
+}
+
+users ||--o{ complaints : "reports"
+assets ||--o{ complaints : "has"
+assets ||--o{ history : "timeline"
+users ||--o{ notifications : "receives"
+
+@enduml

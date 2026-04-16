@@ -1,0 +1,43 @@
+@startuml
+skinparam componentStyle rectangle
+
+title LabTrack Component Diagram
+
+package "Client Layer" {
+  [Student/Admin Browser] as Browser
+  [React Frontend\n(Vite)] as Frontend
+}
+
+package "Server Layer" {
+  [Express API Server] as API
+  [Auth Middleware\nJWT] as Auth
+  [Route Modules\nauth/assets/complaints/admin] as Routes
+  [Socket.IO Server] as Socket
+  [AI Service\n(classifyComplaint)] as AISvc
+  [Export Engine\nCSV/Excel/PDF] as Export
+}
+
+package "Data Layer" {
+  database "Supabase Postgres" as DB
+  [Supabase Storage\ncomplaint-images] as Storage
+}
+
+cloud "External AI" {
+  [Gemini API] as Gemini
+}
+
+Browser --> Frontend : UI interactions
+Frontend --> API : REST /api/*
+Frontend <--> Socket : websocket events
+
+API --> Auth : protect routes
+API --> Routes : dispatch requests
+Routes --> DB : CRUD/query
+Routes --> Storage : upload images
+Routes --> AISvc : priority classification
+Routes --> Export : file generation
+
+AISvc --> Gemini : model call
+API --> Socket : emit updates
+
+@enduml
