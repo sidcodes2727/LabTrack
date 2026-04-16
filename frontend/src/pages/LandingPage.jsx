@@ -105,14 +105,14 @@ const audienceCards = [
 
 const valuePillars = [
   {
-    title: 'Why We Built TrackLab',
+    title: 'Why We Built LabTrack',
     description:
-      'Campus labs usually rely on scattered spreadsheets and verbal updates. We built TrackLab to turn that into a single visible system of record.'
+      'Campus labs usually rely on scattered spreadsheets and verbal updates. We built LabTrack to turn that into a single visible system of record.'
   },
   {
     title: 'What Makes It Different',
     description:
-      'TrackLab connects map context, complaint workflows, AI triage, and status communication in one loop instead of disconnected tools.'
+      'LabTrack connects map context, complaint workflows, AI triage, and status communication in one loop instead of disconnected tools.'
   },
   {
     title: 'What You Gain',
@@ -515,7 +515,7 @@ export default function LandingPage({ session }) {
                       transition={{ delay: 0.3 }}
                       className="mt-5 max-w-2xl text-[15px] leading-7 text-[#61545a]"
                     >
-                      TrackLab is a campus-first platform for lab asset health. Students can report machine issues quickly, admins can prioritize and resolve complaints through a structured flow, and management gets complete visibility into uptime and maintenance history.
+                      LabTrack is a campus-first platform for lab asset health. Students can report machine issues quickly, admins can prioritize and resolve complaints through a structured flow, and management gets complete visibility into uptime and maintenance history.
                     </motion.p>
 
                     <motion.div
@@ -715,7 +715,7 @@ export default function LandingPage({ session }) {
               className="mx-auto mt-8 w-full max-w-6xl rounded-3xl border border-[#9d2235]/12 bg-white/80 p-6 shadow-[0_18px_40px_rgba(92,34,46,0.12)] md:p-8"
             >
               <div className="mb-5 max-w-3xl">
-                <p className="text-xs uppercase tracking-[0.14em] text-[#8f6670]">About TrackLab</p>
+                <p className="text-xs uppercase tracking-[0.14em] text-[#8f6670]">About LabTrack</p>
                 <h2 className="mt-2 text-3xl font-semibold text-[#24171d]">A reliability platform built for real campus lab workflows.</h2>
               </div>
 
@@ -747,7 +747,7 @@ export default function LandingPage({ session }) {
             >
               <div className="rounded-3xl border border-[#9d2235]/12 bg-[linear-gradient(160deg,#fffefe_0%,#fff6f4_100%)] p-6 md:p-8">
                 <p className="text-xs uppercase tracking-[0.14em] text-[#8f6670]">Workflow</p>
-                <h2 className="mt-2 text-3xl font-semibold text-[#24171d]">How TrackLab works end-to-end</h2>
+                <h2 className="mt-2 text-3xl font-semibold text-[#24171d]">How LabTrack works end-to-end</h2>
 
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
                   {workflowSteps.map((item, index) => {
@@ -860,7 +860,7 @@ export default function LandingPage({ session }) {
                   <p className="text-xs uppercase tracking-[0.14em] text-[#8f6670]">Impact</p>
                   <h2 className="mt-2 text-3xl font-semibold text-[#24171d]">Better visibility means faster fixes and less classroom disruption.</h2>
                   <p className="mt-3 text-sm leading-7 text-[#64555c]">
-                    TrackLab brings reporting, diagnostics, assignment, and progress updates into one timeline. Teams spend less time searching for context and more time restoring lab availability.
+                    LabTrack brings reporting, diagnostics, assignment, and progress updates into one timeline. Teams spend less time searching for context and more time restoring lab availability.
                   </p>
 
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -878,7 +878,7 @@ export default function LandingPage({ session }) {
                 <div className="rounded-2xl border border-[#9d2235]/12 bg-[linear-gradient(140deg,#9d2235_0%,#872035_55%,#6f1d31_100%)] p-5 text-white shadow-[0_18px_34px_rgba(96,24,39,0.35)]">
                   <p className="text-xs uppercase tracking-[0.14em] text-white/75">From Our Team</p>
                   <p className="mt-3 text-xl font-semibold leading-relaxed">
-                    "We built TrackLab to remove uncertainty from lab operations. Every complaint should be visible, actionable, and measurable."
+                    "We built LabTrack to remove uncertainty from lab operations. Every complaint should be visible, actionable, and measurable."
                   </p>
                   <div className="mt-8 flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full border border-white/25 px-2.5 py-1">Student-first UX</span>
@@ -897,7 +897,7 @@ export default function LandingPage({ session }) {
               transition={{ duration: 0.45, ease: 'easeOut' }}
               className="mx-auto mt-8 w-full max-w-6xl rounded-3xl border border-[#9d2235]/12 bg-[#fef8f7] px-6 py-7 text-center shadow-[0_14px_32px_rgba(90,34,46,0.08)] md:px-8"
             >
-              <h3 className="text-2xl font-semibold text-[#271920]">Ready to experience TrackLab?</h3>
+              <h3 className="text-2xl font-semibold text-[#271920]">Ready to experience LabTrack?</h3>
               <p className="mx-auto mt-2 max-w-2xl text-sm leading-7 text-[#66575f]">
                 Start with the portal and see how complaint reporting, asset mapping, and admin resolution workflows stay connected from day one.
               </p>
@@ -906,7 +906,7 @@ export default function LandingPage({ session }) {
                   to={primaryPath}
                   className="inline-flex items-center gap-2 rounded-2xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-[0_12px_22px_rgba(157,34,53,0.35)]"
                 >
-                  Enter TrackLab
+                  Enter LabTrack
                   <ArrowRight size={15} />
                 </Link>
                 <Link
