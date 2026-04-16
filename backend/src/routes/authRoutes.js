@@ -4,19 +4,35 @@ import jwt from 'jsonwebtoken';
 import { supabase } from '../services/supabase.js';
 
 const router = express.Router();
+const isAllowedLoginEmail = (email) => {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const atIndex = normalizedEmail.lastIndexOf('@');
+
+  if (atIndex === -1) {
+    return false;
+  }
+
+  const domain = normalizedEmail.slice(atIndex + 1);
+  return domain === 'vjti.ac.in' || domain.endsWith('.vjti.ac.in');
+};
 
 router.post('/signup', async (req, res, next) => {
   try {
     const { name, email, password, role } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
 
     if (!name || !email || !password || !role) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
+    if (!isAllowedLoginEmail(normalizedEmail)) {
+      return res.status(403).json({ message: 'Only emails ending with vjti.ac.in can signup.' });
+    }
+
     const { data: existing } = await supabase
       .from('users')
       .select('id')
-      .eq('email', email)
+      .eq('email', normalizedEmail)
       .maybeSingle();
 
     if (existing) {
@@ -27,7 +43,7 @@ router.post('/signup', async (req, res, next) => {
 
     const { data, error } = await supabase
       .from('users')
-      .insert({ name, email, password_hash: passwordHash, role })
+      .insert({ name, email: normalizedEmail, password_hash: passwordHash, role })
       .select('id, name, email, role')
       .single();
 
@@ -42,11 +58,16 @@ router.post('/signup', async (req, res, next) => {
 router.post('/login', async (req, res, next) => {
   try {
     const { email, password, role } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+
+    if (!isAllowedLoginEmail(normalizedEmail)) {
+      return res.status(403).json({ message: 'Only emails ending with vjti.ac.in can login.' });
+    }
 
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
-      .eq('email', email)
+      .eq('email', normalizedEmail)
       .maybeSingle();
 
     if (error) throw error;
