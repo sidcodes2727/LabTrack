@@ -27,10 +27,15 @@ export default function AdminPage({ session, onLogout }) {
   const [cards, setCards] = useState([]);
   const [adminView, setAdminView] = useState('operations');
   const [exportFilters, setExportFilters] = useState({
+    dataType: 'complaints',
+    format: 'csv',
+    category: '',
     lab: '',
     status: '',
+    assetStatus: '',
     priority: '',
     section: '',
+    search: '',
     from: '',
     to: ''
   });
@@ -75,23 +80,23 @@ export default function AdminPage({ session, onLogout }) {
     };
   }, [session?.token]);
 
-  const exportFile = async (format) => {
+  const exportFile = async () => {
     try {
       const { data } = await api.get('/admin/export', {
-        params: { ...exportFilters, format },
+        params: exportFilters,
         responseType: 'blob'
       });
 
-      const ext = format === 'excel' ? 'xlsx' : format;
+      const ext = exportFilters.format === 'excel' ? 'xlsx' : exportFilters.format;
       const blobUrl = window.URL.createObjectURL(new Blob([data]));
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.download = `complaints.${ext}`;
+      link.download = `${exportFilters.dataType}-report.${ext}`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(blobUrl);
-      toast.success(`${format.toUpperCase()} export ready`);
+      toast.success(`${exportFilters.format.toUpperCase()} export ready`);
     } catch {
       toast.error('Export failed');
     }
@@ -377,8 +382,59 @@ export default function AdminPage({ session, onLogout }) {
               transition={{ duration: 0.34, ease: 'easeOut', delay: 0.12 }}
               className="mb-4 rounded-3xl border border-[#9d2235]/10 bg-white/90 p-4 shadow-glass backdrop-blur-md"
             >
-              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">Export Reports</div>
-              <div className="mb-3 grid gap-2 md:grid-cols-6">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div className="text-xs font-semibold uppercase tracking-[0.08em] text-gray-500">Export Reports</div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExportFilters({
+                      dataType: 'complaints',
+                      format: 'csv',
+                      category: '',
+                      lab: '',
+                      status: '',
+                      assetStatus: '',
+                      priority: '',
+                      section: '',
+                      search: '',
+                      from: '',
+                      to: ''
+                    })
+                  }
+                  className="rounded-xl border border-[#9d2235]/20 px-3 py-1.5 text-xs text-[#5f5663] hover:border-[#9d2235]/40"
+                >
+                  Reset Filters
+                </button>
+              </div>
+
+              <div className="mb-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                <select
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
+                  value={exportFilters.dataType}
+                  onChange={(e) => setExportFilters((p) => ({ ...p, dataType: e.target.value }))}
+                >
+                  <option value="complaints">Data Type: Complaints</option>
+                  <option value="inventory">Data Type: Inventory</option>
+                  <option value="both">Data Type: Both</option>
+                </select>
+
+                <select
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
+                  value={exportFilters.format}
+                  onChange={(e) => setExportFilters((p) => ({ ...p, format: e.target.value }))}
+                >
+                  <option value="csv">Format: CSV</option>
+                  <option value="excel">Format: Excel</option>
+                  <option value="pdf">Format: PDF</option>
+                </select>
+
+                <input
+                  placeholder="Category (Lab)"
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
+                  value={exportFilters.category}
+                  onChange={(e) => setExportFilters((p) => ({ ...p, category: e.target.value }))}
+                />
+
                 <input
                   placeholder="Lab"
                   className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
@@ -391,26 +447,47 @@ export default function AdminPage({ session, onLogout }) {
                   value={exportFilters.section}
                   onChange={(e) => setExportFilters((p) => ({ ...p, section: e.target.value }))}
                 />
+
                 <select
                   className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
                   value={exportFilters.status}
                   onChange={(e) => setExportFilters((p) => ({ ...p, status: e.target.value }))}
                 >
-                  <option value="">All Status</option>
+                  <option value="">Complaint Status: All</option>
                   <option value="pending">Pending</option>
                   <option value="in_progress">In Progress</option>
                   <option value="resolved">Resolved</option>
                 </select>
+
                 <select
                   className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
                   value={exportFilters.priority}
                   onChange={(e) => setExportFilters((p) => ({ ...p, priority: e.target.value }))}
                 >
-                  <option value="">All Priority</option>
+                  <option value="">Priority: All</option>
                   <option value="Low">Low</option>
                   <option value="Medium">Medium</option>
                   <option value="High">High</option>
                 </select>
+
+                <select
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
+                  value={exportFilters.assetStatus}
+                  onChange={(e) => setExportFilters((p) => ({ ...p, assetStatus: e.target.value }))}
+                >
+                  <option value="">Asset Status: All</option>
+                  <option value="working">Working</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="faulty">Faulty</option>
+                </select>
+
+                <input
+                  placeholder="Search keyword"
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
+                  value={exportFilters.search}
+                  onChange={(e) => setExportFilters((p) => ({ ...p, search: e.target.value }))}
+                />
+
                 <input
                   type="date"
                   className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-accent/40"
@@ -425,16 +502,13 @@ export default function AdminPage({ session, onLogout }) {
                 />
               </div>
 
-              <div className="mb-3 flex flex-wrap gap-2">
-                <button onClick={() => exportFile('csv')} className="inline-flex items-center gap-2 rounded-xl border border-[#9d2235]/20 bg-white px-3 py-2 text-sm hover:border-[#9d2235]/40">
-                  <Download size={16} /> Export CSV
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <button onClick={exportFile} className="inline-flex items-center gap-2 rounded-xl border border-[#9d2235]/20 bg-white px-4 py-2 text-sm font-semibold hover:border-[#9d2235]/40">
+                  <Download size={16} /> Export {exportFilters.dataType} as {exportFilters.format.toUpperCase()}
                 </button>
-                <button onClick={() => exportFile('excel')} className="inline-flex items-center gap-2 rounded-xl border border-[#9d2235]/20 bg-white px-3 py-2 text-sm hover:border-[#9d2235]/40">
-                  <Download size={16} /> Export Excel
-                </button>
-                <button onClick={() => exportFile('pdf')} className="inline-flex items-center gap-2 rounded-xl border border-[#9d2235]/20 bg-white px-3 py-2 text-sm hover:border-[#9d2235]/40">
-                  <Download size={16} /> Export PDF
-                </button>
+                <span className="text-xs text-gray-500">
+                  Export applies data type + filters and includes detailed admin-ready columns.
+                </span>
               </div>
             </motion.section>
           </>

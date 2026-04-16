@@ -11,6 +11,595 @@ import { emitRoleUpdate, emitUserUpdate } from '../services/socket.js';
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 const ALLOWED_KANBAN_STATUSES = ['pending', 'in_progress', 'resolved'];
+const ALLOWED_EXPORT_FORMATS = ['csv', 'excel', 'pdf'];
+const ALLOWED_EXPORT_DATA_TYPES = ['inventory', 'complaints', 'both'];
+
+const INVENTORY_COLUMNS = [
+  { header: 'Asset ID', key: 'id', width: 38 },
+  { header: 'System ID', key: 'system_id', width: 20 },
+  { header: 'Original ID', key: 'original_id', width: 20 },
+  { header: 'Category', key: 'category', width: 14 },
+  { header: 'Lab', key: 'lab', width: 14 },
+  { header: 'Section', key: 'section', width: 12 },
+  { header: 'Row', key: 'row_num', width: 10 },
+  { header: 'Position', key: 'position', width: 10 },
+  { header: 'Status', key: 'status', width: 14 },
+  { header: 'CPU', key: 'cpu', width: 22 },
+  { header: 'RAM', key: 'ram', width: 14 },
+  { header: 'Purchase Date', key: 'purchase_date', width: 15 },
+  { header: 'Last Maintenance', key: 'last_maintenance', width: 18 },
+  { header: 'Created At', key: 'created_at', width: 20 },
+  { header: 'Open Complaints', key: 'open_complaints', width: 16 },
+  { header: 'Total Complaints', key: 'total_complaints', width: 16 },
+  { header: 'Latest Complaint At', key: 'latest_complaint_at', width: 20 }
+];
+
+const COMPLAINT_COLUMNS = [
+  { header: 'Complaint ID', key: 'id', width: 38 },
+  { header: 'Asset ID', key: 'asset_id', width: 38 },
+  { header: 'System ID', key: 'asset_system_id', width: 20 },
+  { header: 'Original ID', key: 'asset_original_id', width: 20 },
+  { header: 'Category', key: 'asset_category', width: 14 },
+  { header: 'Lab', key: 'asset_lab', width: 14 },
+  { header: 'Section', key: 'asset_section', width: 12 },
+  { header: 'Asset Status', key: 'asset_status', width: 14 },
+  { header: 'Priority', key: 'priority', width: 12 },
+  { header: 'Status', key: 'status', width: 14 },
+  { header: 'Student Name', key: 'user_name', width: 20 },
+  { header: 'Student Email', key: 'user_email', width: 24 },
+  { header: 'Affected Students', key: 'affected_students', width: 16 },
+  { header: 'Description', key: 'description', width: 44 },
+  { header: 'Created At', key: 'created_at', width: 20 },
+  { header: 'Updated At', key: 'updated_at', width: 20 },
+  { header: 'Status History', key: 'status_history', width: 50 }
+];
+
+const asDate = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const toIsoDayStart = (value) => {
+  const date = asDate(value);
+  if (!date) return null;
+  date.setHours(0, 0, 0, 0);
+  return date.toISOString();
+};
+
+const toIsoDayEnd = (value) => {
+  const date = asDate(value);
+  if (!date) return null;
+  date.setHours(23, 59, 59, 999);
+  return date.toISOString();
+};
+
+const formatDateTime = (value) => {
+  const date = asDate(value);
+  if (!date) return '-';
+  return date.toLocaleString('en-GB', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+};
+
+const formatDateOnly = (value) => {
+  const date = asDate(value);
+  if (!date) return '-';
+  return date.toLocaleDateString('en-GB', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit'
+  });
+};
+
+const normalizeText = (value) => String(value || '').trim().toLowerCase();
+
+const csvEscape = (value) => {
+  if (value === null || value === undefined) return '';
+  const safe = String(value).replace(/"/g, '""');
+  return /[",\n]/.test(safe) ? `"${safe}"` : safe;
+};
+
+const buildCsv = (columns, rows) => {
+  const header = columns.map((column) => csvEscape(column.header)).join(',');
+  const body = rows
+    .map((row) => columns.map((column) => csvEscape(row[column.key])).join(','))
+    .join('\n');
+  return body ? `${header}\n${body}` : `${header}\n`;
+};
+
+const deriveAssetCategory = (asset) => {
+  if (!asset) return 'Unknown';
+  return asset.lab || 'Unassigned Lab';
+};
+
+const includesTerm = (value, term) => normalizeText(value).includes(normalizeText(term));
+
+const prepareWorkbookSheet = (workbook, name, columns, rows) => {
+  const sheet = workbook.addWorksheet(name);
+  sheet.columns = columns;
+  rows.forEach((row) => {
+    const excelRow = {};
+    columns.forEach((column) => {
+      excelRow[column.key] = row[column.key] ?? '';
+    });
+    sheet.addRow(excelRow);
+  });
+
+  sheet.getRow(1).font = { bold: true };
+  sheet.views = [{ state: 'frozen', ySplit: 1 }];
+  sheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: columns.length }
+  };
+};
+
+const writeLabelValue = (doc, label, value, options = {}) => {
+  const x = options.x || 44;
+  const width = options.width || 510;
+  doc.font('Helvetica-Bold').fillColor('#111827').fontSize(9).text(`${label}: `, x, doc.y, { continued: true, width });
+  doc.font('Helvetica').fillColor('#374151').text(String(value ?? '-'));
+};
+
+const ensureSpace = (doc, heightNeeded) => {
+  if (doc.y + heightNeeded > doc.page.height - 42) {
+    doc.addPage();
+    doc.y = 40;
+  }
+};
+
+const fetchInventoryRows = async (filters) => {
+  let assetQuery = supabase
+    .from('assets')
+    .select('id, system_id, original_id, lab, section, row_num, position, status, cpu, ram, purchase_date, last_maintenance, created_at')
+    .order('lab', { ascending: true })
+    .order('section', { ascending: true })
+    .order('row_num', { ascending: true })
+    .order('position', { ascending: true });
+
+  if (filters.assetStatus) {
+    assetQuery = assetQuery.eq('status', filters.assetStatus);
+  }
+  if (filters.fromIso) {
+    assetQuery = assetQuery.gte('created_at', filters.fromIso);
+  }
+  if (filters.toIso) {
+    assetQuery = assetQuery.lte('created_at', filters.toIso);
+  }
+
+  const { data: assets, error: assetError } = await assetQuery;
+  if (assetError) throw assetError;
+
+  const filteredAssets = (assets || []).filter((asset) => {
+    const category = deriveAssetCategory(asset);
+
+    if (filters.lab && !includesTerm(asset.lab, filters.lab)) return false;
+    if (filters.section && !includesTerm(asset.section, filters.section)) return false;
+    if (filters.category && !includesTerm(category, filters.category)) return false;
+
+    if (filters.search) {
+      const searchable = [asset.system_id, asset.original_id, asset.cpu, asset.ram, asset.lab, asset.section, category].join(' ');
+      if (!includesTerm(searchable, filters.search)) return false;
+    }
+
+    return true;
+  });
+
+  if (!filteredAssets.length) return [];
+
+  const assetIds = filteredAssets.map((asset) => asset.id);
+  const { data: complaintRows, error: complaintError } = await supabase
+    .from('complaints')
+    .select('asset_id, status, created_at')
+    .in('asset_id', assetIds);
+
+  if (complaintError) throw complaintError;
+
+  const complaintStatsByAsset = (complaintRows || []).reduce((acc, complaint) => {
+    if (!acc[complaint.asset_id]) {
+      acc[complaint.asset_id] = {
+        total: 0,
+        open: 0,
+        latest: null
+      };
+    }
+
+    acc[complaint.asset_id].total += 1;
+    if (complaint.status !== 'resolved') {
+      acc[complaint.asset_id].open += 1;
+    }
+
+    const latestDate = asDate(acc[complaint.asset_id].latest);
+    const currentDate = asDate(complaint.created_at);
+    if (!latestDate || (currentDate && currentDate > latestDate)) {
+      acc[complaint.asset_id].latest = complaint.created_at;
+    }
+
+    return acc;
+  }, {});
+
+  return filteredAssets.map((asset) => {
+    const stats = complaintStatsByAsset[asset.id] || { total: 0, open: 0, latest: null };
+    return {
+      ...asset,
+      category: deriveAssetCategory(asset),
+      purchase_date: formatDateOnly(asset.purchase_date),
+      last_maintenance: formatDateOnly(asset.last_maintenance),
+      created_at: formatDateTime(asset.created_at),
+      open_complaints: stats.open,
+      total_complaints: stats.total,
+      latest_complaint_at: formatDateTime(stats.latest)
+    };
+  });
+};
+
+const fetchComplaintRows = async (filters) => {
+  let complaintQuery = supabase
+    .from('complaints')
+    .select(
+      'id, asset_id, user_id, description, priority, status, support_count, supporter_ids, created_at, updated_at, assets(id, system_id, original_id, lab, section, status, cpu, ram), users(name, email)'
+    )
+    .order('created_at', { ascending: false });
+
+  if (filters.status) {
+    complaintQuery = complaintQuery.eq('status', filters.status);
+  }
+  if (filters.priority) {
+    complaintQuery = complaintQuery.eq('priority', filters.priority);
+  }
+  if (filters.fromIso) {
+    complaintQuery = complaintQuery.gte('created_at', filters.fromIso);
+  }
+  if (filters.toIso) {
+    complaintQuery = complaintQuery.lte('created_at', filters.toIso);
+  }
+
+  const { data: complaints, error: complaintError } = await complaintQuery;
+  if (complaintError) throw complaintError;
+
+  const filteredComplaints = (complaints || []).filter((item) => {
+    const assetCategory = deriveAssetCategory(item.assets);
+
+    if (filters.lab && !includesTerm(item.assets?.lab, filters.lab)) return false;
+    if (filters.section && !includesTerm(item.assets?.section, filters.section)) return false;
+    if (filters.assetStatus && !includesTerm(item.assets?.status, filters.assetStatus)) return false;
+    if (filters.category && !includesTerm(assetCategory, filters.category)) return false;
+
+    if (filters.search) {
+      const searchable = [
+        item.id,
+        item.description,
+        item.priority,
+        item.status,
+        item.assets?.system_id,
+        item.assets?.original_id,
+        item.assets?.lab,
+        item.assets?.section,
+        item.users?.name,
+        item.users?.email
+      ].join(' ');
+
+      if (!includesTerm(searchable, filters.search)) return false;
+    }
+
+    return true;
+  });
+
+  if (!filteredComplaints.length) return [];
+
+  const assetIds = [...new Set(filteredComplaints.map((item) => item.asset_id).filter(Boolean))];
+  let historyRows = [];
+
+  if (assetIds.length) {
+    const { data, error } = await supabase
+      .from('history')
+      .select('asset_id, event_type, details, event_date')
+      .in('asset_id', assetIds)
+      .order('event_date', { ascending: false });
+
+    if (error) throw error;
+    historyRows = data || [];
+  }
+
+  const historyByAsset = historyRows.reduce((acc, item) => {
+    if (!acc[item.asset_id]) {
+      acc[item.asset_id] = [];
+    }
+    acc[item.asset_id].push(item);
+    return acc;
+  }, {});
+
+  return filteredComplaints.map((item) => {
+    const assetEvents = (historyByAsset[item.asset_id] || [])
+      .filter((event) => /complaint/i.test(event.event_type || '') || /complaint/i.test(event.details || ''))
+      .slice(0, 4)
+      .map((event) => `${formatDateTime(event.event_date)} - ${event.event_type}: ${String(event.details || '').slice(0, 140)}`);
+
+    const timeline = [`Created (${item.status === 'pending' ? 'pending' : 'reported'}): ${formatDateTime(item.created_at)}`];
+
+    if (item.updated_at && item.updated_at !== item.created_at) {
+      timeline.push(`Last status update (${item.status}): ${formatDateTime(item.updated_at)}`);
+    }
+
+    if (assetEvents.length) {
+      timeline.push(...assetEvents);
+    }
+
+    const supporterIds = Array.isArray(item.supporter_ids) ? item.supporter_ids : [];
+    const affectedStudents = Number.isFinite(item.support_count) ? item.support_count + 1 : supporterIds.length + 1;
+
+    return {
+      id: item.id,
+      asset_id: item.asset_id,
+      asset_system_id: item.assets?.system_id || '-',
+      asset_original_id: item.assets?.original_id || '-',
+      asset_category: deriveAssetCategory(item.assets),
+      asset_lab: item.assets?.lab || '-',
+      asset_section: item.assets?.section || '-',
+      asset_status: item.assets?.status || '-',
+      asset_cpu: item.assets?.cpu || '-',
+      asset_ram: item.assets?.ram || '-',
+      priority: item.priority,
+      status: item.status,
+      user_name: item.users?.name || '-',
+      user_email: item.users?.email || '-',
+      affected_students: affectedStudents,
+      description: item.description,
+      created_at: formatDateTime(item.created_at),
+      updated_at: formatDateTime(item.updated_at || item.created_at),
+      status_history: timeline.join(' | '),
+      status_history_lines: timeline
+    };
+  });
+};
+
+const writeInventoryPdfSection = (doc, inventoryRows, filters) => {
+  ensureSpace(doc, 90);
+  doc.font('Helvetica-Bold').fontSize(14).fillColor('#111827').text('Inventory Export', 40, doc.y, { width: 520 });
+  doc.moveDown(0.2);
+  doc.font('Helvetica').fontSize(9.5).fillColor('#4b5563').text('Detailed asset report grouped by category with operational summaries.', 40, doc.y, { width: 520 });
+  doc.moveDown(0.4);
+
+  const byStatus = inventoryRows.reduce(
+    (acc, row) => {
+      if (row.status === 'faulty') acc.faulty += 1;
+      else if (row.status === 'maintenance') acc.maintenance += 1;
+      else acc.working += 1;
+      return acc;
+    },
+    { working: 0, maintenance: 0, faulty: 0 }
+  );
+
+  const byCategory = inventoryRows.reduce((acc, row) => {
+    const key = row.category || 'Unknown';
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  const summaryLine = `Total Assets: ${inventoryRows.length} | Working: ${byStatus.working} | Maintenance: ${byStatus.maintenance} | Faulty: ${byStatus.faulty}`;
+  doc.font('Helvetica-Bold').fontSize(10).fillColor('#9d2235').text(summaryLine, 40, doc.y, { width: 520 });
+  doc.moveDown(0.4);
+
+  doc.font('Helvetica-Bold').fontSize(10).fillColor('#111827').text('Assets Per Category', 40, doc.y, { width: 520 });
+  const categoryRows = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
+  if (!categoryRows.length) {
+    doc.font('Helvetica').fontSize(9).fillColor('#6b7280').text('No inventory records found for selected filters.', 40, doc.y, { width: 520 });
+    doc.moveDown(0.4);
+  } else {
+    categoryRows.forEach(([category, count]) => {
+      doc.font('Helvetica').fontSize(9).fillColor('#374151').text(`- ${category}: ${count}`, 44, doc.y, { width: 516 });
+    });
+    doc.moveDown(0.4);
+  }
+
+  const activeFilters = [
+    ['Category', filters.category],
+    ['Lab', filters.lab],
+    ['Section', filters.section],
+    ['Asset Status', filters.assetStatus],
+    ['From', filters.from],
+    ['To', filters.to]
+  ].filter(([, value]) => value);
+
+  doc.font('Helvetica-Bold').fontSize(10).fillColor('#111827').text('Applied Filters', 40, doc.y, { width: 520 });
+  if (!activeFilters.length) {
+    doc.font('Helvetica').fontSize(9).fillColor('#6b7280').text('None', 44, doc.y, { width: 516 });
+  } else {
+    activeFilters.forEach(([name, value]) => {
+      doc.font('Helvetica').fontSize(9).fillColor('#374151').text(`- ${name}: ${value}`, 44, doc.y, { width: 516 });
+    });
+  }
+  doc.moveDown(0.5);
+
+  doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#111827').text('Detailed Asset Listing', 40, doc.y, { width: 520 });
+  doc.moveDown(0.3);
+
+  const maxRows = 180;
+  const rowsToRender = inventoryRows.slice(0, maxRows);
+
+  rowsToRender.forEach((row, index) => {
+    const cardLines = [
+      `System: ${row.system_id}  |  Original: ${row.original_id}  |  Category: ${row.category}`,
+      `Location: ${row.lab} / ${row.section}  |  Row: ${row.row_num}  |  Position: ${row.position}`,
+      `Status: ${row.status}  |  CPU: ${row.cpu}  |  RAM: ${row.ram}`,
+      `Purchased: ${row.purchase_date}  |  Last Maintenance: ${row.last_maintenance}  |  Created: ${row.created_at}`,
+      `Complaints: ${row.total_complaints} total, ${row.open_complaints} open, latest ${row.latest_complaint_at}`
+    ];
+
+    const textHeight = cardLines.reduce((acc, line) => acc + doc.heightOfString(line, { width: 496 }), 0);
+    const cardHeight = Math.max(68, textHeight + 18);
+    ensureSpace(doc, cardHeight + 8);
+
+    const cardY = doc.y;
+    doc.save();
+    doc.roundedRect(40, cardY, 520, cardHeight, 7).fill(index % 2 === 0 ? '#f8fafc' : '#f1f5f9');
+    doc.restore();
+
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#111827').text(`${index + 1}. Asset ${row.id}`, 48, cardY + 8, { width: 500 });
+    let lineY = cardY + 21;
+    cardLines.forEach((line) => {
+      doc.font('Helvetica').fontSize(8.9).fillColor('#374151').text(line, 48, lineY, { width: 496 });
+      lineY += doc.heightOfString(line, { width: 496 });
+    });
+
+    doc.y = cardY + cardHeight + 8;
+  });
+
+  if (inventoryRows.length > rowsToRender.length) {
+    ensureSpace(doc, 20);
+    doc
+      .font('Helvetica')
+      .fontSize(9)
+      .fillColor('#6b7280')
+      .text(
+        `Showing ${rowsToRender.length} of ${inventoryRows.length} assets in PDF detail view. Use CSV/Excel export for full raw dataset.`,
+        40,
+        doc.y,
+        { width: 520 }
+      );
+    doc.moveDown(0.4);
+  }
+};
+
+const writeComplaintsPdfSection = (doc, complaintRows, filters) => {
+  ensureSpace(doc, 90);
+  doc.font('Helvetica-Bold').fontSize(14).fillColor('#111827').text('Complaints Export', 40, doc.y, { width: 520 });
+  doc.moveDown(0.2);
+  doc
+    .font('Helvetica')
+    .fontSize(9.5)
+    .fillColor('#4b5563')
+    .text('Detailed complaint report including user details, status timeline, timestamps, and related asset context.', 40, doc.y, {
+      width: 520
+    });
+  doc.moveDown(0.4);
+
+  const byStatus = complaintRows.reduce(
+    (acc, row) => {
+      if (row.status === 'pending') acc.pending += 1;
+      else if (row.status === 'in_progress') acc.in_progress += 1;
+      else if (row.status === 'resolved') acc.resolved += 1;
+      return acc;
+    },
+    { pending: 0, in_progress: 0, resolved: 0 }
+  );
+
+  const byPriority = complaintRows.reduce(
+    (acc, row) => {
+      if (row.priority === 'High') acc.High += 1;
+      else if (row.priority === 'Medium') acc.Medium += 1;
+      else if (row.priority === 'Low') acc.Low += 1;
+      return acc;
+    },
+    { High: 0, Medium: 0, Low: 0 }
+  );
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(10)
+    .fillColor('#9d2235')
+    .text(
+      `Total Complaints: ${complaintRows.length} | Pending: ${byStatus.pending} | In Progress: ${byStatus.in_progress} | Resolved: ${byStatus.resolved}`,
+      40,
+      doc.y,
+      { width: 520 }
+    );
+  doc
+    .font('Helvetica')
+    .fontSize(9)
+    .fillColor('#374151')
+    .text(`Priority Mix - High: ${byPriority.High}, Medium: ${byPriority.Medium}, Low: ${byPriority.Low}`, 40, doc.y + 2, {
+      width: 520
+    });
+  doc.moveDown(0.5);
+
+  const activeFilters = [
+    ['Category', filters.category],
+    ['Lab', filters.lab],
+    ['Section', filters.section],
+    ['Complaint Status', filters.status],
+    ['Asset Status', filters.assetStatus],
+    ['Priority', filters.priority],
+    ['From', filters.from],
+    ['To', filters.to]
+  ].filter(([, value]) => value);
+
+  doc.font('Helvetica-Bold').fontSize(10).fillColor('#111827').text('Applied Filters', 40, doc.y, { width: 520 });
+  if (!activeFilters.length) {
+    doc.font('Helvetica').fontSize(9).fillColor('#6b7280').text('None', 44, doc.y, { width: 516 });
+  } else {
+    activeFilters.forEach(([name, value]) => {
+      doc.font('Helvetica').fontSize(9).fillColor('#374151').text(`- ${name}: ${value}`, 44, doc.y, { width: 516 });
+    });
+  }
+  doc.moveDown(0.5);
+
+  doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#111827').text('Detailed Complaint Listing', 40, doc.y, { width: 520 });
+  doc.moveDown(0.3);
+
+  const maxRows = 140;
+  const rowsToRender = complaintRows.slice(0, maxRows);
+
+  rowsToRender.forEach((row, index) => {
+    const historyLines = row.status_history_lines.slice(0, 5);
+    const description = String(row.description || '-').replace(/\s+/g, ' ').trim();
+    const descriptionLine = `Description: ${description.length > 280 ? `${description.slice(0, 277)}...` : description}`;
+
+    const fixedLines = [
+      `Complaint: ${row.id}`,
+      `Asset: ${row.asset_system_id} (${row.asset_original_id}) | ${row.asset_lab}/${row.asset_section} | Asset Status: ${row.asset_status}`,
+      `User: ${row.user_name} <${row.user_email}> | Priority: ${row.priority} | Status: ${row.status}`,
+      `Created: ${row.created_at} | Updated: ${row.updated_at} | Affected Students: ${row.affected_students}`,
+      `Hardware: CPU ${row.asset_cpu} | RAM ${row.asset_ram}`,
+      descriptionLine,
+      'Status History:'
+    ];
+
+    const allLines = [...fixedLines, ...historyLines.map((line) => `- ${line}`)];
+    const textHeight = allLines.reduce((acc, line) => acc + doc.heightOfString(line, { width: 496 }), 0);
+    const cardHeight = Math.max(96, textHeight + 20);
+
+    ensureSpace(doc, cardHeight + 8);
+    const cardY = doc.y;
+
+    doc.save();
+    doc.roundedRect(40, cardY, 520, cardHeight, 7).fill(index % 2 === 0 ? '#fff7ed' : '#fff1f2');
+    doc.restore();
+
+    let lineY = cardY + 8;
+    allLines.forEach((line, lineIndex) => {
+      const isHeading = lineIndex === 0 || line === 'Status History:';
+      doc
+        .font(isHeading ? 'Helvetica-Bold' : 'Helvetica')
+        .fontSize(isHeading ? 9.4 : 8.9)
+        .fillColor('#1f2937')
+        .text(`${lineIndex === 0 ? `${index + 1}. ` : ''}${line}`, 48, lineY, { width: 496 });
+      lineY += doc.heightOfString(`${lineIndex === 0 ? `${index + 1}. ` : ''}${line}`, { width: 496 });
+    });
+
+    doc.y = cardY + cardHeight + 8;
+  });
+
+  if (complaintRows.length > rowsToRender.length) {
+    ensureSpace(doc, 20);
+    doc
+      .font('Helvetica')
+      .fontSize(9)
+      .fillColor('#6b7280')
+      .text(
+        `Showing ${rowsToRender.length} of ${complaintRows.length} complaints in PDF detail view. Use CSV/Excel export for full raw dataset.`,
+        40,
+        doc.y,
+        { width: 520 }
+      );
+    doc.moveDown(0.4);
+  }
+};
 
 router.use(authenticate, authorize('admin'));
 
@@ -235,579 +824,96 @@ router.post('/import', upload.single('file'), async (req, res, next) => {
 
 router.get('/export', async (req, res, next) => {
   try {
-    const { lab, status, priority, section, format = 'csv', from, to } = req.query;
+    const format = normalizeText(req.query.format || 'csv');
+    const dataType = normalizeText(req.query.dataType || req.query.type || 'complaints');
 
-    let query = supabase
-      .from('complaints')
-      .select('id, description, priority, status, created_at, updated_at, assets(system_id, lab, section)')
-      .order('created_at', { ascending: false });
+    if (!ALLOWED_EXPORT_FORMATS.includes(format)) {
+      return res.status(400).json({ message: `Invalid format. Allowed: ${ALLOWED_EXPORT_FORMATS.join(', ')}` });
+    }
 
-    if (status) query = query.eq('status', status);
-    if (priority) query = query.eq('priority', priority);
-    if (from) query = query.gte('created_at', from);
-    if (to) query = query.lte('created_at', to);
+    if (!ALLOWED_EXPORT_DATA_TYPES.includes(dataType)) {
+      return res.status(400).json({ message: `Invalid dataType. Allowed: ${ALLOWED_EXPORT_DATA_TYPES.join(', ')}` });
+    }
 
-    const { data, error } = await query;
-    if (error) throw error;
+    const filters = {
+      category: String(req.query.category || '').trim(),
+      lab: String(req.query.lab || '').trim(),
+      section: String(req.query.section || '').trim(),
+      status: String(req.query.status || '').trim(),
+      assetStatus: String(req.query.assetStatus || '').trim(),
+      priority: String(req.query.priority || '').trim(),
+      from: String(req.query.from || '').trim(),
+      to: String(req.query.to || '').trim(),
+      search: String(req.query.search || '').trim(),
+      fromIso: toIsoDayStart(req.query.from),
+      toIso: toIsoDayEnd(req.query.to)
+    };
 
-    const filtered = (data || []).filter((item) => {
-      if (lab && item.assets?.lab !== lab) return false;
-      if (section && item.assets?.section !== section) return false;
-      return true;
-    });
+    const inventoryRows = dataType === 'inventory' || dataType === 'both' ? await fetchInventoryRows(filters) : [];
+    const complaintRows = dataType === 'complaints' || dataType === 'both' ? await fetchComplaintRows(filters) : [];
+
+    const fileBase = dataType === 'both' ? 'inventory-complaints' : dataType;
 
     if (format === 'excel') {
       const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet('Complaints');
-      sheet.columns = [
-        { header: 'ID', key: 'id' },
-        { header: 'System ID', key: 'system' },
-        { header: 'Lab', key: 'lab' },
-        { header: 'Section', key: 'section' },
-        { header: 'Priority', key: 'priority' },
-        { header: 'Status', key: 'status' },
-        { header: 'Description', key: 'description' },
-        { header: 'Created At', key: 'created' }
-      ];
 
-      filtered.forEach((item) => {
-        sheet.addRow({
-          id: item.id,
-          system: item.assets?.system_id,
-          lab: item.assets?.lab,
-          section: item.assets?.section,
-          priority: item.priority,
-          status: item.status,
-          description: item.description,
-          created: item.created_at
-        });
-      });
+      if (dataType === 'inventory') {
+        prepareWorkbookSheet(workbook, 'Inventory', INVENTORY_COLUMNS, inventoryRows);
+      } else if (dataType === 'complaints') {
+        prepareWorkbookSheet(workbook, 'Complaints', COMPLAINT_COLUMNS, complaintRows);
+      } else {
+        prepareWorkbookSheet(workbook, 'Inventory', INVENTORY_COLUMNS, inventoryRows);
+        prepareWorkbookSheet(workbook, 'Complaints', COMPLAINT_COLUMNS, complaintRows);
+      }
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', 'attachment; filename="complaints.xlsx"');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileBase}.xlsx"`);
       await workbook.xlsx.write(res);
       return res.end();
     }
 
     if (format === 'pdf') {
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'attachment; filename="complaints.pdf"');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileBase}.pdf"`);
 
       const doc = new PDFDocument({ margin: 40, size: 'A4', bufferPages: true });
       doc.pipe(res);
 
-      const pageWidth = doc.page.width;
-      const contentWidth = pageWidth - 80;
-      const leftX = 40;
+      doc.save();
+      doc.roundedRect(40, 30, 520, 76, 10).fill('#9d2235');
+      doc.restore();
 
-      const asDate = (value) => {
-        const date = new Date(value);
-        return Number.isNaN(date.getTime()) ? null : date;
-      };
+      doc.font('Helvetica-Bold').fontSize(21).fillColor('#ffffff').text('LabTrack Admin Export Report', 52, 50, { width: 500 });
+      doc
+        .font('Helvetica')
+        .fontSize(9.5)
+        .fillColor('#ffe4e6')
+        .text(
+          `Dataset: ${dataType.toUpperCase()}  |  Generated: ${new Date().toLocaleString()}  |  Format: PDF`,
+          52,
+          79,
+          { width: 500 }
+        );
 
-      const formatDateTime = (value) => {
-        const date = asDate(value);
-        if (!date) return '-';
-        return date.toLocaleString('en-GB', {
-          year: 'numeric',
-          month: 'short',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        });
-      };
+      doc.y = 122;
+      doc.font('Helvetica-Bold').fontSize(11).fillColor('#111827').text('Export Overview', 40, doc.y, { width: 520 });
+      writeLabelValue(doc, 'Inventory Records', inventoryRows.length);
+      writeLabelValue(doc, 'Complaint Records', complaintRows.length);
+      writeLabelValue(doc, 'Selected Data Type', dataType);
+      writeLabelValue(doc, 'Applied Search', filters.search || 'None');
+      doc.moveDown(0.4);
 
-      const pct = (part, total) => (total ? `${((part / total) * 100).toFixed(1)}%` : '0.0%');
+      if (dataType === 'inventory' || dataType === 'both') {
+        writeInventoryPdfSection(doc, inventoryRows, filters);
+      }
 
-      const bar = (x, y, width, height, value, max, color) => {
-        const safeMax = max || 1;
-        const fill = Math.max(0, Math.min(width, (value / safeMax) * width));
-        doc.roundedRect(x, y, width, height, 4).fill('#eef2f7');
-        doc.roundedRect(x, y, fill, height, 4).fill(color);
-      };
-
-      const ensureSpace = (heightNeeded) => {
-        if (doc.y + heightNeeded > doc.page.height - 45) {
-          doc.addPage();
-          doc.y = 40;
-        }
-      };
-
-      const resetCursor = () => {
-        doc.x = leftX;
-      };
-
-      const total = filtered.length;
-      const byStatus = {
-        pending: filtered.filter((c) => c.status === 'pending').length,
-        in_progress: filtered.filter((c) => c.status === 'in_progress').length,
-        resolved: filtered.filter((c) => c.status === 'resolved').length
-      };
-
-      const byPriority = {
-        High: filtered.filter((c) => c.priority === 'High').length,
-        Medium: filtered.filter((c) => c.priority === 'Medium').length,
-        Low: filtered.filter((c) => c.priority === 'Low').length
-      };
-
-      const byLab = {};
-      const bySection = {};
-      const byAsset = {};
-
-      filtered.forEach((item) => {
-        const labKey = item.assets?.lab || 'Unknown';
-        const sectionKey = `${item.assets?.lab || 'Unknown'} / ${item.assets?.section || 'N/A'}`;
-        const assetKey = item.assets?.system_id || 'Unknown';
-        byLab[labKey] = (byLab[labKey] || 0) + 1;
-        bySection[sectionKey] = (bySection[sectionKey] || 0) + 1;
-        byAsset[assetKey] = (byAsset[assetKey] || 0) + 1;
-      });
-
-      const topLabs = Object.entries(byLab)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
-
-      const topSections = Object.entries(bySection)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
-
-      const topAssets = Object.entries(byAsset)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 8);
-
-      const today = new Date();
-      const trendDays = 14;
-      const trend = Array.from({ length: trendDays }, (_, idx) => {
-        const d = new Date(today);
-        d.setDate(today.getDate() - (trendDays - 1 - idx));
-        const key = d.toISOString().slice(0, 10);
-        return { date: key, count: 0 };
-      });
-
-      const trendMap = Object.fromEntries(trend.map((t) => [t.date, t]));
-      filtered.forEach((item) => {
-        const date = asDate(item.created_at);
-        if (!date) return;
-        const key = date.toISOString().slice(0, 10);
-        if (trendMap[key]) trendMap[key].count += 1;
-      });
-
-      const trendMax = Math.max(1, ...trend.map((t) => t.count));
-      const recentWindow = trend.slice(-7).reduce((sum, t) => sum + t.count, 0);
-      const previousWindow = trend.slice(0, 7).reduce((sum, t) => sum + t.count, 0);
-      const trendDirection = recentWindow > previousWindow ? 'Increasing' : recentWindow < previousWindow ? 'Decreasing' : 'Stable';
-
-      const resolvedWithDurations = filtered
-        .filter((c) => c.status === 'resolved')
-        .map((c) => {
-          const start = asDate(c.created_at);
-          const end = asDate(c.updated_at || c.created_at);
-          if (!start || !end) return null;
-          const hours = Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60));
-          return hours;
-        })
-        .filter((v) => v !== null);
-
-      const avgResolutionHours = resolvedWithDurations.length
-        ? resolvedWithDurations.reduce((a, b) => a + b, 0) / resolvedWithDurations.length
-        : 0;
-
-      const unresolvedRatio = total ? (byStatus.pending + byStatus.in_progress) / total : 0;
-      const highRatio = total ? byPriority.High / total : 0;
-      const concentration = total && topLabs.length ? topLabs[0][1] / total : 0;
-      const rawRiskScore = unresolvedRatio * 45 + highRatio * 35 + concentration * 20;
-      const riskScore = Math.max(0, Math.min(100, Math.round(rawRiskScore)));
-
-      const activeFilters = [
-        ['Lab', lab],
-        ['Section', section],
-        ['Status', status],
-        ['Priority', priority],
-        ['From', from],
-        ['To', to]
-      ].filter(([, value]) => Boolean(value));
-
-      const reportCode = `LT-${today.toISOString().slice(0, 10)}-${String(total).padStart(4, '0')}`;
-
-      const drawHeader = () => {
-        doc.save();
-        doc.roundedRect(40, 30, contentWidth, 84, 12).fill('#9d2235');
-
-        doc.roundedRect(56, 49, 46, 46, 10).fill('#ffffff');
-        doc.fillColor('#9d2235').font('Helvetica-Bold').fontSize(19).text('LT', 68, 63);
-
-        doc.fillColor('#ffffff').fontSize(19).font('Helvetica-Bold').text('LabTrack Complaint Report', 116, 51);
-        doc
-          .fontSize(10)
-          .font('Helvetica')
-          .text('Campus Lab Asset Reliability and Service Analytics', 116, 74);
-        doc
-          .fontSize(9)
-          .font('Helvetica')
-          .fillColor('#ffe4e6')
-          .text(`Generated: ${new Date().toLocaleString()}  |  Report ID: ${reportCode}`, 116, 89);
-        doc.restore();
-      };
-
-      const drawFilterAndKpi = () => {
-        doc.y = 130;
-        resetCursor();
-        doc.fillColor('#1f2937').font('Helvetica-Bold').fontSize(11).text('Applied Filters', leftX, doc.y, { width: contentWidth });
-
-        if (!activeFilters.length) {
-          doc.font('Helvetica').fontSize(10).fillColor('#6b7280').text('None', leftX, doc.y, { width: contentWidth });
-        } else {
-          activeFilters.forEach(([label, value]) => {
-            resetCursor();
-            doc
-              .font('Helvetica')
-              .fontSize(10)
-              .fillColor('#374151')
-              .text(`${label}: `, leftX, doc.y, { continued: true, width: contentWidth })
-              .font('Helvetica-Bold')
-              .text(String(value));
-          });
-        }
-
-        const statsY = doc.y + 10;
-        const statWidth = (contentWidth - 20) / 4;
-        const stats = [
-          { label: 'Total', value: total },
-          { label: 'Pending', value: byStatus.pending },
-          { label: 'In Progress', value: byStatus.in_progress },
-          { label: 'Resolved', value: byStatus.resolved }
-        ];
-
-        stats.forEach((stat, idx) => {
-          const x = 40 + idx * (statWidth + 6);
-          doc.save();
-          doc.roundedRect(x, statsY, statWidth, 44, 8).fill('#f8fafc');
-          doc.restore();
-          doc
-            .fillColor('#6b7280')
-            .font('Helvetica')
-            .fontSize(9)
-            .text(stat.label, x + 10, statsY + 8)
-            .fillColor('#111827')
-            .font('Helvetica-Bold')
-            .fontSize(16)
-            .text(String(stat.value), x + 10, statsY + 20);
-        });
-
-        doc.y = statsY + 58;
-      };
-
-      const drawExecutiveSummary = () => {
-        ensureSpace(120);
-        resetCursor();
-        doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text('Executive Summary', leftX, doc.y, { width: contentWidth });
+      if (dataType === 'both') {
+        ensureSpace(doc, 32);
         doc.moveDown(0.3);
+      }
 
-        const lines = [
-          `Report scope contains ${total} complaint records after filters.`,
-          `Backlog ratio (pending + in-progress): ${pct(byStatus.pending + byStatus.in_progress, total)}.`,
-          `High-priority share: ${pct(byPriority.High, total)}.`,
-          `14-day complaint trend is ${trendDirection.toLowerCase()} (${recentWindow} recent vs ${previousWindow} previous).`,
-          byStatus.resolved
-            ? `Average resolution time for resolved items: ${avgResolutionHours.toFixed(1)} hours.`
-            : 'No resolved complaints in current scope, so resolution-time benchmark is unavailable.'
-        ];
-
-        lines.forEach((line) => {
-          resetCursor();
-          doc.font('Helvetica').fontSize(10).fillColor('#374151').text(`- ${line}`, leftX, doc.y, { width: contentWidth });
-        });
-
-        doc.moveDown(0.6);
-        resetCursor();
-        doc
-          .font('Helvetica-Bold')
-          .fontSize(11)
-          .fillColor('#9d2235')
-          .text(`Risk Score: ${riskScore}/100`, leftX, doc.y, { width: contentWidth });
-        resetCursor();
-        doc
-          .font('Helvetica')
-          .fontSize(10)
-          .fillColor('#374151')
-          .text('(derived from backlog, severity mix, and concentration hotspots)', leftX, doc.y + 2, { width: contentWidth });
-
-        doc.moveDown(0.5);
-      };
-
-      const drawDistributionSection = () => {
-        ensureSpace(170);
-        resetCursor();
-        doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text('Status and Priority Distribution', leftX, doc.y, { width: contentWidth });
-        doc.moveDown(0.4);
-
-        const statusRows = [
-          ['Pending', byStatus.pending, '#c2410c'],
-          ['In Progress', byStatus.in_progress, '#9d2235'],
-          ['Resolved', byStatus.resolved, '#166534']
-        ];
-
-        statusRows.forEach(([label, value, color]) => {
-          const y = doc.y;
-          doc.font('Helvetica').fontSize(10).fillColor('#374151').text(String(label), 40, y);
-          doc.font('Helvetica-Bold').fillColor('#111827').text(`${value} (${pct(value, total)})`, 150, y);
-          bar(290, y + 1, 230, 9, value, total || 1, color);
-          doc.y = y + 18;
-        });
-
-        doc.moveDown(0.3);
-
-        const priorityRows = [
-          ['High', byPriority.High, '#b91c1c'],
-          ['Medium', byPriority.Medium, '#d97706'],
-          ['Low', byPriority.Low, '#15803d']
-        ];
-
-        priorityRows.forEach(([label, value, color]) => {
-          const y = doc.y;
-          doc.font('Helvetica').fontSize(10).fillColor('#374151').text(String(label), 40, y);
-          doc.font('Helvetica-Bold').fillColor('#111827').text(`${value} (${pct(value, total)})`, 150, y);
-          bar(290, y + 1, 230, 9, value, total || 1, color);
-          doc.y = y + 18;
-        });
-
-        doc.moveDown(0.5);
-      };
-
-      const drawTrendSection = () => {
-        ensureSpace(170);
-        resetCursor();
-        doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text('14-Day Complaint Trend', leftX, doc.y, { width: contentWidth });
-        doc.moveDown(0.3);
-
-        const chartX = leftX;
-        const chartY = doc.y + 8;
-        const chartW = contentWidth;
-        const chartH = 90;
-        const colW = chartW / trend.length;
-
-        doc.roundedRect(chartX, chartY, chartW, chartH, 8).fill('#f8fafc');
-
-        trend.forEach((t, i) => {
-          const barH = (t.count / trendMax) * (chartH - 20);
-          const x = chartX + i * colW + 2;
-          const y = chartY + chartH - barH - 8;
-          doc.rect(x, y, Math.max(2, colW - 4), barH).fill('#9d2235');
-        });
-
-        doc
-          .font('Helvetica')
-          .fontSize(9)
-          .fillColor('#4b5563')
-          .text(`Window: ${trend[0]?.date || '-'} to ${trend[trend.length - 1]?.date || '-'} | Direction: ${trendDirection}`, chartX, chartY + chartH + 6);
-
-        doc.y = chartY + chartH + 24;
-      };
-
-      const drawHotspotsSection = () => {
-        ensureSpace(210);
-        resetCursor();
-        doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text('Hotspots and Concentration', leftX, doc.y, { width: contentWidth });
-        doc.moveDown(0.4);
-
-        const maxLab = Math.max(1, ...topLabs.map(([, c]) => c), 1);
-        const maxSection = Math.max(1, ...topSections.map(([, c]) => c), 1);
-
-        resetCursor();
-        doc.font('Helvetica-Bold').fontSize(10).fillColor('#374151').text('Top Labs', leftX, doc.y, { width: contentWidth });
-        doc.moveDown(0.2);
-        topLabs.forEach(([name, count]) => {
-          const y = doc.y;
-          doc.font('Helvetica').fontSize(10).fillColor('#374151').text(name, 40, y);
-          doc.font('Helvetica-Bold').fillColor('#111827').text(`${count}`, 240, y);
-          bar(290, y + 1, 230, 9, count, maxLab, '#9d2235');
-          doc.y = y + 17;
-        });
-
-        if (!topLabs.length) {
-          resetCursor();
-          doc.font('Helvetica').fontSize(10).fillColor('#6b7280').text('No lab concentration data available.', leftX, doc.y, { width: contentWidth });
-        }
-
-        doc.moveDown(0.4);
-        resetCursor();
-        doc.font('Helvetica-Bold').fontSize(10).fillColor('#374151').text('Top Sections', leftX, doc.y, { width: contentWidth });
-        doc.moveDown(0.2);
-        topSections.forEach(([name, count]) => {
-          const y = doc.y;
-          doc.font('Helvetica').fontSize(10).fillColor('#374151').text(name, 40, y, { width: 190 });
-          doc.font('Helvetica-Bold').fillColor('#111827').text(`${count}`, 240, y);
-          bar(290, y + 1, 230, 9, count, maxSection, '#b45309');
-          doc.y = y + 17;
-        });
-
-        if (!topSections.length) {
-          resetCursor();
-          doc.font('Helvetica').fontSize(10).fillColor('#6b7280').text('No section hotspot data available.', leftX, doc.y, { width: contentWidth });
-        }
-
-        doc.moveDown(0.5);
-      };
-
-      const drawAssetHotspotSection = () => {
-        ensureSpace(200);
-        resetCursor();
-        doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text('Most Frequently Reported Systems', leftX, doc.y, { width: contentWidth });
-        doc.moveDown(0.4);
-
-        if (!topAssets.length) {
-          resetCursor();
-          doc.font('Helvetica').fontSize(10).fillColor('#6b7280').text('No system-level complaint data available.', leftX, doc.y, { width: contentWidth });
-          doc.moveDown(0.4);
-          return;
-        }
-
-        const maxAsset = Math.max(1, ...topAssets.map(([, c]) => c), 1);
-        topAssets.forEach(([systemId, count]) => {
-          const y = doc.y;
-          doc.font('Helvetica').fontSize(10).fillColor('#374151').text(systemId, 40, y, { width: 230 });
-          doc.font('Helvetica-Bold').fillColor('#111827').text(`${count}`, 280, y);
-          bar(320, y + 1, 200, 9, count, maxAsset, '#1d4ed8');
-          doc.y = y + 16;
-        });
-
-        doc.moveDown(0.5);
-      };
-
-      const drawRecommendations = () => {
-        ensureSpace(150);
-        resetCursor();
-        doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text('Recommended Actions', leftX, doc.y, { width: contentWidth });
-        doc.moveDown(0.4);
-
-        const actions = [];
-        if (byPriority.High > 0) {
-          actions.push(`Prioritize ${byPriority.High} high-severity complaints for same-day triage.`);
-        }
-        if (byStatus.pending > 0) {
-          actions.push(`Backlog reduction target: close or progress at least ${Math.ceil(byStatus.pending * 0.5)} pending tickets this cycle.`);
-        }
-        if (topLabs[0] && topLabs[0][1] / (total || 1) >= 0.4) {
-          actions.push(`Run focused preventive maintenance in ${topLabs[0][0]} (highest concentration).`);
-        }
-        if (avgResolutionHours > 48) {
-          actions.push(`Resolution SLA is slow (${avgResolutionHours.toFixed(1)}h average). Introduce escalation for >48h unresolved items.`);
-        }
-        if (topAssets[0] && topAssets[0][1] >= 3) {
-          actions.push(`Investigate repeated failures on ${topAssets[0][0]} and consider replacement decision.`);
-        }
-        if (!actions.length) {
-          actions.push('Current complaint portfolio is stable; continue routine preventive checks and weekly trend reviews.');
-        }
-
-        actions.forEach((a) => {
-          resetCursor();
-          doc.font('Helvetica').fontSize(10).fillColor('#374151').text(`- ${a}`, leftX, doc.y, { width: contentWidth });
-        });
-      };
-
-      const drawDetailedLogSection = () => {
-        ensureSpace(120);
-        resetCursor();
-        doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text('Detailed Complaint Log', leftX, doc.y, { width: contentWidth });
-        doc.moveDown(0.3);
-
-        if (!filtered.length) {
-          resetCursor();
-          doc.font('Helvetica').fontSize(10).fillColor('#6b7280').text('No complaint records available for detailed listing.', leftX, doc.y, { width: contentWidth });
-          doc.moveDown(0.4);
-          return;
-        }
-
-        const visibleRows = filtered.slice(0, 60);
-        const hasMoreRows = filtered.length > visibleRows.length;
-
-        resetCursor();
-        doc
-          .font('Helvetica')
-          .fontSize(9)
-          .fillColor('#6b7280')
-          .text(
-            hasMoreRows
-              ? `Showing first ${visibleRows.length} most recent complaints out of ${filtered.length}.`
-              : `Showing all ${visibleRows.length} complaints.`,
-            leftX,
-            doc.y,
-            { width: contentWidth }
-          );
-        doc.moveDown(0.4);
-
-        visibleRows.forEach((item, index) => {
-          const systemId = item.assets?.system_id || 'Unknown';
-          const location = `${item.assets?.lab || 'Unknown'} / ${item.assets?.section || 'N/A'}`;
-          const statusLabel = String(item.status || 'unknown').replace('_', ' ');
-          const description = String(item.description || '-').replace(/\s+/g, ' ').trim();
-          const trimmedDescription = description.length > 260 ? `${description.slice(0, 257)}...` : description;
-
-          const detailLine = `Location: ${location}  |  Priority: ${item.priority || '-'}  |  Status: ${statusLabel}`;
-          const dateLine = `Created: ${formatDateTime(item.created_at)}  |  Updated: ${formatDateTime(item.updated_at || item.created_at)}`;
-
-          const descriptionHeight = doc.heightOfString(trimmedDescription, { width: contentWidth - 20 });
-          const rowHeight = Math.max(70, 50 + descriptionHeight);
-
-          ensureSpace(rowHeight + 8);
-          const rowY = doc.y;
-
-          doc.save();
-          doc.roundedRect(leftX, rowY, contentWidth, rowHeight, 8).fill(index % 2 === 0 ? '#f8fafc' : '#f1f5f9');
-          doc.restore();
-
-          doc
-            .font('Helvetica-Bold')
-            .fontSize(10)
-            .fillColor('#111827')
-            .text(`${index + 1}. ${systemId}`, leftX + 10, rowY + 8, { width: contentWidth - 20 });
-
-          doc
-            .font('Helvetica')
-            .fontSize(9)
-            .fillColor('#4b5563')
-            .text(detailLine, leftX + 10, rowY + 22, { width: contentWidth - 20 });
-
-          doc
-            .font('Helvetica')
-            .fontSize(9)
-            .fillColor('#6b7280')
-            .text(dateLine, leftX + 10, rowY + 34, { width: contentWidth - 20 });
-
-          doc
-            .font('Helvetica')
-            .fontSize(9.5)
-            .fillColor('#1f2937')
-            .text(trimmedDescription, leftX + 10, rowY + 48, { width: contentWidth - 20 });
-
-          doc.y = rowY + rowHeight + 8;
-        });
-      };
-
-      drawHeader();
-      drawFilterAndKpi();
-
-      if (!total) {
-        doc
-          .font('Helvetica-Bold')
-          .fontSize(12)
-          .fillColor('#111827')
-          .text('No Data for Selected Filters')
-          .moveDown(0.3)
-          .font('Helvetica')
-          .fontSize(10)
-          .fillColor('#6b7280')
-          .text('Try broadening the filter set to generate a full analytical report.');
-      } else {
-        drawExecutiveSummary();
-        drawDistributionSection();
-        drawTrendSection();
-        drawHotspotsSection();
-        drawAssetHotspotSection();
-        drawRecommendations();
-        drawDetailedLogSection();
+      if (dataType === 'complaints' || dataType === 'both') {
+        writeComplaintsPdfSection(doc, complaintRows, filters);
       }
 
       const pageCount = doc.bufferedPageRange().count;
@@ -817,24 +923,86 @@ router.get('/export', async (req, res, next) => {
           .font('Helvetica')
           .fontSize(8)
           .fillColor('#9ca3af')
-          .text(`Page ${i + 1} of ${pageCount}`, 40, doc.page.height - 25, { align: 'right', width: contentWidth });
+          .text(`Page ${i + 1} of ${pageCount}`, 40, doc.page.height - 24, {
+            align: 'right',
+            width: 520
+          });
       }
 
       doc.end();
       return null;
     }
 
-    const csvHeader = 'id,system_id,lab,section,priority,status,description,created_at\n';
-    const csvRows = filtered
-      .map(
-        (item) =>
-          `${item.id},${item.assets?.system_id || ''},${item.assets?.lab || ''},${item.assets?.section || ''},${item.priority},${item.status},"${String(item.description).replace(/"/g, '""')}",${item.created_at}`
-      )
-      .join('\n');
+    if (dataType === 'inventory') {
+      const csv = buildCsv(INVENTORY_COLUMNS, inventoryRows);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileBase}.csv"`);
+      return res.send(csv);
+    }
 
+    if (dataType === 'complaints') {
+      const csv = buildCsv(COMPLAINT_COLUMNS, complaintRows);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileBase}.csv"`);
+      return res.send(csv);
+    }
+
+    const BOTH_COLUMNS = [
+      { header: 'Record Type', key: 'record_type' },
+      { header: 'Primary ID', key: 'primary_id' },
+      { header: 'System ID', key: 'system_id' },
+      { header: 'Category', key: 'category' },
+      { header: 'Lab', key: 'lab' },
+      { header: 'Section', key: 'section' },
+      { header: 'Status', key: 'status' },
+      { header: 'Priority', key: 'priority' },
+      { header: 'User Name', key: 'user_name' },
+      { header: 'User Email', key: 'user_email' },
+      { header: 'Description / Specs', key: 'details' },
+      { header: 'Created At', key: 'created_at' },
+      { header: 'Updated At', key: 'updated_at' },
+      { header: 'Extra Notes', key: 'extra' }
+    ];
+
+    const bothRows = [
+      ...inventoryRows.map((row) => ({
+        record_type: 'inventory',
+        primary_id: row.id,
+        system_id: row.system_id,
+        category: row.category,
+        lab: row.lab,
+        section: row.section,
+        status: row.status,
+        priority: '',
+        user_name: '',
+        user_email: '',
+        details: `CPU ${row.cpu} | RAM ${row.ram} | Original ${row.original_id}`,
+        created_at: row.created_at,
+        updated_at: row.last_maintenance,
+        extra: `Complaints: ${row.total_complaints} total, ${row.open_complaints} open`
+      })),
+      ...complaintRows.map((row) => ({
+        record_type: 'complaint',
+        primary_id: row.id,
+        system_id: row.asset_system_id,
+        category: row.asset_category,
+        lab: row.asset_lab,
+        section: row.asset_section,
+        status: row.status,
+        priority: row.priority,
+        user_name: row.user_name,
+        user_email: row.user_email,
+        details: row.description,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        extra: row.status_history
+      }))
+    ];
+
+    const csv = buildCsv(BOTH_COLUMNS, bothRows);
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="complaints.csv"');
-    return res.send(csvHeader + csvRows);
+    res.setHeader('Content-Disposition', `attachment; filename="${fileBase}.csv"`);
+    return res.send(csv);
   } catch (error) {
     return next(error);
   }
