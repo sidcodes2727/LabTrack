@@ -715,17 +715,34 @@ router.patch('/kanban/:id', async (req, res, next) => {
     }
 
     const systemId = currentComplaint.assets?.system_id || currentComplaint.asset_id;
+    let resolvedNotification = null;
+
     if (status === 'resolved') {
-      await supabase.from('notifications').insert({
-        title: 'Complaint resolved',
-        message: `Your ${systemId} complaint has been resolved. Priority: ${currentComplaint.priority}.`,
-        role_target: 'student',
-        user_id: currentComplaint.user_id
-      });
+      const { data: insertedNotification, error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          title: 'Complaint resolved',
+          message: `Your ${systemId} complaint has been resolved. Priority: ${currentComplaint.priority}.`,
+          role_target: 'student',
+          user_id: currentComplaint.user_id
+        })
+        .select('*')
+        .single();
+
+      if (notificationError) throw notificationError;
+      resolvedNotification = insertedNotification;
     }
 
     emitRoleUpdate('admin', {
       type: 'complaint_updated',
+      complaintId: req.params.id,
+      assetId: currentComplaint.asset_id,
+      userId: currentComplaint.user_id,
+      status
+    });
+
+    emitRoleUpdate('student', {
+      type: status === 'resolved' ? 'complaint_resolved' : 'complaint_updated',
       complaintId: req.params.id,
       assetId: currentComplaint.asset_id,
       userId: currentComplaint.user_id,
@@ -737,7 +754,8 @@ router.patch('/kanban/:id', async (req, res, next) => {
       complaintId: req.params.id,
       assetId: currentComplaint.asset_id,
       userId: currentComplaint.user_id,
-      status
+      status,
+      notification: resolvedNotification
     });
 
     if (status !== 'resolved') {
@@ -810,6 +828,16 @@ router.post('/import', upload.single('file'), async (req, res, next) => {
     if (finalRows.length) {
       const { error } = await supabase.from('assets').insert(finalRows);
       if (error) throw error;
+
+      emitRoleUpdate('admin', {
+        type: 'inventory_imported',
+        imported: finalRows.length
+      });
+
+      emitRoleUpdate('student', {
+        type: 'inventory_imported',
+        imported: finalRows.length
+      });
     }
 
     return res.json({

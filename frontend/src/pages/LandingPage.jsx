@@ -248,8 +248,11 @@ export default function LandingPage({ session }) {
 
     loadLandingSnapshot();
 
+    const intervalId = setInterval(loadLandingSnapshot, 30000);
+
     return () => {
       mounted = false;
+      clearInterval(intervalId);
     };
   }, []);
 
@@ -278,8 +281,11 @@ export default function LandingPage({ session }) {
 
     loadOverdueComplaints();
 
+    const intervalId = setInterval(loadOverdueComplaints, 30000);
+
     return () => {
       mounted = false;
+      clearInterval(intervalId);
     };
   }, [session?.user?.id]);
 

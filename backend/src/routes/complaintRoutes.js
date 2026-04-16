@@ -158,13 +158,28 @@ router.post('/:id/plus', authenticate, async (req, res, next) => {
       details: `${req.user.name} confirmed an existing issue on ${systemLabel}. Support count is now ${nextSupportCount}.`
     });
 
-    await supabase.from('notifications').insert({
+    const { data: adminNotification, error: adminNotificationError } = await supabase
+      .from('notifications')
+      .insert({
       title: 'Complaint received +1 support',
       message: `${req.user.name} confirmed an existing issue on ${systemLabel} in ${locationLabel}. Support count: ${nextSupportCount}.`,
       role_target: 'admin'
-    });
+      })
+      .select('*')
+      .single();
+
+    if (adminNotificationError) throw adminNotificationError;
 
     emitRoleUpdate('admin', {
+      type: 'complaint_supported',
+      complaintId: complaint.id,
+      assetId: complaint.asset_id,
+      userId: req.user.id,
+      supportCount: nextSupportCount,
+      notification: adminNotification || null
+    });
+
+    emitRoleUpdate('student', {
       type: 'complaint_supported',
       complaintId: complaint.id,
       assetId: complaint.asset_id,
@@ -179,6 +194,16 @@ router.post('/:id/plus', authenticate, async (req, res, next) => {
       userId: req.user.id,
       supportCount: nextSupportCount
     });
+
+    if (complaint.user_id && complaint.user_id !== req.user.id) {
+      emitUserUpdate(complaint.user_id, {
+        type: 'complaint_supported',
+        complaintId: complaint.id,
+        assetId: complaint.asset_id,
+        userId: req.user.id,
+        supportCount: nextSupportCount
+      });
+    }
 
     return res.json({
       complaintId: updatedComplaint.id,
@@ -262,13 +287,27 @@ router.post('/', authenticate, upload.single('image'), async (req, res, next) =>
 
     const adminMessage = `${req.user.name} (${req.user.email}) reported ${systemLabel} in ${locationLabel}. Priority: ${finalPriority}.`;
 
-    await supabase.from('notifications').insert({
+    const { data: adminNotification, error: adminNotificationError } = await supabase
+      .from('notifications')
+      .insert({
       title: 'New complaint submitted',
       message: adminMessage,
       role_target: 'admin'
-    });
+      })
+      .select('*')
+      .single();
+
+    if (adminNotificationError) throw adminNotificationError;
 
     emitRoleUpdate('admin', {
+      type: 'complaint_created',
+      complaintId: complaint.id,
+      assetId,
+      userId: req.user.id,
+      notification: adminNotification || null
+    });
+
+    emitRoleUpdate('student', {
       type: 'complaint_created',
       complaintId: complaint.id,
       assetId,

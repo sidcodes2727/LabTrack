@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../lib/api';
@@ -13,14 +13,61 @@ const formatTime = (value) => {
 export default function NotificationBell({ endpoint = '/admin/notifications', panelTitle = 'Notifications' }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
+  const [livePopup, setLivePopup] = useState(null);
+
+  const seenIdsRef = useRef(new Set());
+  const initializedRef = useRef(false);
+  const openRef = useRef(open);
+  const popupTimerRef = useRef(null);
 
   useEffect(() => {
-    const load = async () => {
+    openRef.current = open;
+  }, [open]);
+
+  const rememberIds = (nextItems) => {
+    nextItems.forEach((item) => {
+      if (item?.id) seenIdsRef.current.add(item.id);
+    });
+
+    if (seenIdsRef.current.size > 300) {
+      const ids = [...seenIdsRef.current];
+      seenIdsRef.current = new Set(ids.slice(-200));
+    }
+  };
+
+  const triggerPopup = (notification) => {
+    if (!notification || openRef.current) return;
+
+    if (popupTimerRef.current) {
+      clearTimeout(popupTimerRef.current);
+    }
+
+    setLivePopup(notification);
+    popupTimerRef.current = setTimeout(() => {
+      setLivePopup(null);
+    }, 3600);
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async ({ allowPopup = false } = {}) => {
       try {
         const { data } = await api.get(endpoint);
-        setItems(data || []);
+        if (!mounted) return;
+
+        const nextItems = Array.isArray(data) ? data : [];
+        const unseen = nextItems.filter((item) => item?.id && !seenIdsRef.current.has(item.id));
+
+        if (initializedRef.current && allowPopup && unseen.length) {
+          triggerPopup(unseen[0]);
+        }
+
+        rememberIds(nextItems);
+        initializedRef.current = true;
+        setItems(nextItems);
       } catch {
-        setItems([]);
+        if (mounted) setItems([]);
       }
     };
 
@@ -31,13 +78,18 @@ export default function NotificationBell({ endpoint = '/admin/notifications', pa
     if (!socket) return undefined;
 
     const handleUpdate = () => {
-      load();
+      load({ allowPopup: true });
     };
 
     socket.on('labtrack:update', handleUpdate);
 
     return () => {
+      mounted = false;
       socket.off('labtrack:update', handleUpdate);
+      if (popupTimerRef.current) {
+        clearTimeout(popupTimerRef.current);
+        popupTimerRef.current = null;
+      }
     };
   }, [endpoint]);
 
@@ -66,6 +118,22 @@ export default function NotificationBell({ endpoint = '/admin/notifications', pa
               ))}
               {!items.length && <p className="text-xs text-gray-500">No notifications yet.</p>}
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {!open && livePopup && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            className="pointer-events-none absolute right-0 top-full z-40 mt-2 w-72 rounded-2xl border border-[#9d2235]/15 bg-white/95 p-3 shadow-glass"
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8b4a5b]">New notification</p>
+            <p className="mt-1 truncate text-sm font-semibold text-[#1d1320]">{livePopup.title || 'Update'}</p>
+            <p className="line-clamp-2 text-xs text-[#5b5262]">{livePopup.message}</p>
+            <p className="mt-1 text-[10px] text-gray-500">{formatTime(livePopup.created_at)}</p>
           </motion.div>
         )}
       </AnimatePresence>

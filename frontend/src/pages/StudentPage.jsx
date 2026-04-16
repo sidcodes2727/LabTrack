@@ -148,8 +148,7 @@ export default function StudentPage({ session, onLogout }) {
     const socket = getSocket(session?.token);
     if (!socket) return undefined;
 
-    const handleUpdate = (payload) => {
-      if (payload?.userId && payload.userId !== session.user.id) return;
+    const handleUpdate = () => {
       loadComplaints();
       loadAssets();
       refreshSelectedDetail();
