@@ -242,7 +242,7 @@ export default function LoginPage({ onAuth }) {
                     value={form.email}
                     onChange={handleChange}
                     type="email"
-                    placeholder="you@university.edu"
+                    placeholder="you@branch.vjti.ac.in"
                     className="w-full rounded-xl border border-gray-200 py-2.5 pl-9 pr-3"
                     required
                   />
