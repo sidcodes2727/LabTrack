@@ -1334,13 +1334,36 @@ router.get('/dashboard', async (_req, res, next) => {
     const [{ count: totalAssets }, { count: faultyAssets }, { data: complaints }] = await Promise.all([
       supabase.from('assets').select('*', { count: 'exact', head: true }),
       supabase.from('assets').select('*', { count: 'exact', head: true }).eq('status', 'faulty'),
-      supabase.from('complaints').select('id, status, priority, assets(lab)')
+      supabase.from('complaints').select('id, status, priority, created_at, assets(lab)')
     ]);
 
     const complaintsPerLab = {};
     for (const c of complaints || []) {
       const lab = c.assets?.lab || 'Unknown';
       complaintsPerLab[lab] = (complaintsPerLab[lab] || 0) + 1;
+    }
+
+    // Calculate 14-day trend data
+    const now = new Date();
+    const trendData = [];
+    
+    for (let i = 13; i >= 0; i--) {
+      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+      
+      const dayComplaints = (complaints || []).filter(c => {
+        if (!c.created_at) return false;
+        const createdDate = new Date(c.created_at);
+        return createdDate >= dayStart && createdDate < dayEnd;
+      }).length;
+      
+      trendData.push({
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        fullDate: dateStr,
+        count: dayComplaints
+      });
     }
 
     return res.json({
@@ -1353,7 +1376,12 @@ router.get('/dashboard', async (_req, res, next) => {
       byStatus: ['pending', 'in_progress', 'resolved'].map((status) => ({
         name: status,
         value: (complaints || []).filter((c) => c.status === status).length
-      }))
+      })),
+      byPriority: ['High', 'Medium', 'Low'].map((priority) => ({
+        name: priority,
+        value: (complaints || []).filter((c) => c.priority === priority).length
+      })),
+      trend14Days: trendData
     });
   } catch (error) {
     return next(error);
