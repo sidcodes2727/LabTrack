@@ -111,8 +111,10 @@ export default function AdminPage({ session, onLogout }) {
   };
 
   const exportFile = async () => {
-    if (!exportFilters.lab) {
-      toast.error('Please select a lab to export.');
+    // Allow export for all labs or specific lab
+    // Only block if inventory is selected but no lab is chosen (for performance)
+    if (exportFilters.dataType === 'inventory' && !exportFilters.lab) {
+      toast.error('Please select a lab for inventory export or choose "Complaints" or "Both".');
       return;
     }
 
@@ -123,10 +125,13 @@ export default function AdminPage({ session, onLogout }) {
       });
 
       const ext = exportFilters.format === 'excel' ? 'xlsx' : exportFilters.format;
+      const labSuffix = exportFilters.lab ? `-${exportFilters.lab.replace(/\s+/g, '-')}` : '-all-labs';
+      const filename = `${exportFilters.dataType}${labSuffix}-report.${ext}`;
+      
       const blobUrl = window.URL.createObjectURL(new Blob([data]));
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.download = `${exportFilters.dataType}-report.${ext}`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -474,7 +479,7 @@ export default function AdminPage({ session, onLogout }) {
                   value={exportFilters.lab}
                   onChange={(e) => setExportFilters((p) => ({ ...p, lab: e.target.value }))}
                 >
-                  <option value="">Select Lab</option>
+                  <option value="">All Labs</option>
                   {exportLabOptions.map((lab) => (
                     <option key={lab} value={lab}>{lab}</option>
                   ))}
@@ -538,7 +543,7 @@ export default function AdminPage({ session, onLogout }) {
                   <Download size={16} /> Export {exportFilters.dataType} as {exportFilters.format.toUpperCase()}
                 </button>
                 <span className="text-xs text-gray-500">
-                  Complaints: lab, complaint status, priority, date range. Inventory: lab, asset status, date range. Both: combined filters.
+                  Complaints: supports all labs or specific lab, with status, priority, and date filters. Inventory: requires specific lab selection. Both: combined filters with lab requirement for inventory data.
                 </span>
               </div>
             </motion.section>

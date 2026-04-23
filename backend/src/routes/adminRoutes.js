@@ -601,6 +601,729 @@ const writeComplaintsPdfSection = (doc, complaintRows, filters) => {
   }
 };
 
+// ===== Detailed PDF rendering helpers =====
+
+const PDF_STATUS_COLORS = { pending: '#f59e0b', in_progress: '#3b82f6', resolved: '#10b981' };
+const PDF_PRIORITY_COLORS = { High: '#9d2235', Medium: '#f59e0b', Low: '#10b981' };
+const PDF_ASSET_STATUS_FILL = {
+  working: { bg: '#d1fae5', border: '#10b981', text: '#065f46' },
+  maintenance: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
+  faulty: { bg: '#fee2e2', border: '#ef4444', text: '#991b1b' }
+};
+
+const titleCase = (s) => (s ? String(s).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '');
+
+const drawSectionHeader = (doc, title) => {
+  ensureSpace(doc, 30);
+  const y = doc.y;
+  doc.save();
+  doc.rect(40, y + 2, 4, 14).fill('#9d2235');
+  doc.restore();
+  doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text(title, 52, y, { width: 508 });
+  doc.moveDown(0.5);
+};
+
+const drawKpiCard = (doc, x, y, w, h, label, value, fillColor = '#ffffff', textColor = '#111827') => {
+  doc.save();
+  doc.roundedRect(x, y, w, h, 6).fillAndStroke(fillColor, '#e5e7eb');
+  doc.restore();
+  doc
+    .font('Helvetica')
+    .fontSize(7.5)
+    .fillColor('#6b7280')
+    .text(String(label || '').toUpperCase(), x + 8, y + 8, { width: w - 16 });
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(16)
+    .fillColor(textColor)
+    .text(String(value ?? '0'), x + 8, y + 22, { width: w - 16 });
+};
+
+const drawKpiGrid = (doc, items) => {
+  const cols = 4;
+  const gap = 8;
+  const totalWidth = 520;
+  const cardW = (totalWidth - gap * (cols - 1)) / cols;
+  const cardH = 48;
+  const rows = Math.ceil(items.length / cols);
+  ensureSpace(doc, rows * (cardH + gap) + 4);
+  const startY = doc.y;
+  items.forEach((item, idx) => {
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    const cx = 40 + col * (cardW + gap);
+    const cy = startY + row * (cardH + gap);
+    drawKpiCard(doc, cx, cy, cardW, cardH, item.label, item.value, item.bg || '#ffffff', item.text || '#111827');
+  });
+  doc.y = startY + rows * (cardH + gap) + 4;
+};
+
+const drawBarChart = (doc, data, options = {}) => {
+  const { x = 40, width = 520, height = 150, color = '#9d2235', title } = options;
+  if (!data || !data.length) return;
+  const headerSpace = title ? 16 : 0;
+  ensureSpace(doc, height + headerSpace + 24);
+  let yCursor = doc.y;
+  if (title) {
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#374151').text(title, x, yCursor, { width });
+    yCursor += 14;
+  }
+  const plotY = yCursor;
+  const plotH = height - 30;
+  const max = Math.max(1, ...data.map((d) => Number(d.value) || 0));
+  const n = data.length;
+  const gap = 6;
+  const barW = Math.max(6, (width - gap * (n + 1)) / n);
+
+  // Baseline
+  doc.save();
+  doc.lineWidth(0.5).strokeColor('#e5e7eb').moveTo(x, plotY + plotH).lineTo(x + width, plotY + plotH).stroke();
+  doc.restore();
+
+  data.forEach((d, i) => {
+    const value = Number(d.value) || 0;
+    const bx = x + gap + i * (barW + gap);
+    const bh = value > 0 ? Math.max(2, (value / max) * plotH) : 0;
+    const by = plotY + plotH - bh;
+    const fill = d.color || color;
+    if (bh > 0) {
+      doc.save();
+      doc.roundedRect(bx, by, barW, bh, 2).fill(fill);
+      doc.restore();
+    }
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(7.5)
+      .fillColor('#111827')
+      .text(String(value), bx, by - 10, { width: barW, align: 'center' });
+    doc
+      .font('Helvetica')
+      .fontSize(7)
+      .fillColor('#4b5563')
+      .text(String(d.name), bx - 4, plotY + plotH + 4, { width: barW + 8, align: 'center' });
+  });
+
+  doc.y = plotY + plotH + 22;
+};
+
+const drawStackedBar = (doc, segments, options = {}) => {
+  const { x = 40, width = 520, height = 22, title } = options;
+  const valid = (segments || []).filter((s) => (Number(s.value) || 0) > 0);
+  const total = valid.reduce((s, v) => s + (Number(v.value) || 0), 0);
+  const headerSpace = title ? 16 : 0;
+  ensureSpace(doc, height + headerSpace + 28);
+  let yCursor = doc.y;
+  if (title) {
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#374151').text(title, x, yCursor, { width });
+    yCursor += 14;
+  }
+  doc.save();
+  doc.roundedRect(x, yCursor, width, height, 4).fillAndStroke('#f3f4f6', '#e5e7eb');
+  doc.restore();
+  if (total > 0) {
+    let bx = x;
+    valid.forEach((seg) => {
+      const segW = (seg.value / total) * width;
+      if (segW < 0.5) return;
+      doc.save();
+      doc.rect(bx, yCursor, segW, height).fill(seg.color);
+      doc.restore();
+      if (segW > 26) {
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(8)
+          .fillColor('#ffffff')
+          .text(String(seg.value), bx + 4, yCursor + (height / 2 - 4), { width: segW - 8 });
+      }
+      bx += segW;
+    });
+  }
+  // Legend
+  const legendY = yCursor + height + 6;
+  let lx = x;
+  (segments || []).forEach((seg) => {
+    doc.save();
+    doc.rect(lx, legendY + 2, 8, 8).fill(seg.color);
+    doc.restore();
+    const lbl = `${titleCase(seg.name)} (${seg.value || 0})`;
+    doc.font('Helvetica').fontSize(8).fillColor('#374151').text(lbl, lx + 12, legendY + 2);
+    lx += doc.widthOfString(lbl) + 28;
+  });
+  doc.y = legendY + 18;
+};
+
+const drawFilterChips = (doc, chips) => {
+  if (!chips.length) return;
+  let x = 40;
+  let y = doc.y;
+  const padX = 8;
+  const padY = 4;
+  const chipH = 16;
+  const maxX = 560;
+  chips.forEach(([k, v]) => {
+    const text = `${k}: ${v}`;
+    const textW = doc.font('Helvetica').fontSize(8).widthOfString(text);
+    const w = textW + padX * 2;
+    if (x + w > maxX) {
+      x = 40;
+      y += chipH + 4;
+    }
+    doc.save();
+    doc.roundedRect(x, y, w, chipH, 8).fillAndStroke('#fff1f2', '#fecdd3');
+    doc.restore();
+    doc.font('Helvetica').fontSize(8).fillColor('#9f1239').text(text, x + padX, y + padY, { width: textW + 2 });
+    x += w + 6;
+  });
+  doc.y = y + chipH + 6;
+};
+
+const drawLabLayout = (doc, assets, filters) => {
+  if (!assets || !assets.length) return;
+  const title = filters.lab ? `Lab Layout — ${filters.lab}` : 'Lab Layout — All Labs';
+  drawSectionHeader(doc, title);
+  
+  // Enhanced description for All Labs
+  const description = filters.lab 
+    ? `Physical arrangement of ${assets.length} asset(s) in ${filters.lab}. Color indicates status.${filters.assetStatus ? ` Filtered by "${filters.assetStatus}".` : ''}`
+    : `Physical arrangement of ${assets.length} asset(s) across all labs. Color indicates status.${filters.assetStatus ? ` Filtered by "${filters.assetStatus}".` : ''}`;
+  
+  doc
+    .font('Helvetica')
+    .fontSize(9)
+    .fillColor('#4b5563')
+    .text(description, 40, doc.y, { width: 520 });
+  doc.moveDown(0.3);
+
+  // Legend
+  const legendY = doc.y;
+  let lx = 40;
+  [
+    { label: 'Working', key: 'working' },
+    { label: 'Maintenance', key: 'maintenance' },
+    { label: 'Faulty', key: 'faulty' }
+  ].forEach((l) => {
+    const style = PDF_ASSET_STATUS_FILL[l.key];
+    doc.save();
+    doc.roundedRect(lx, legendY + 2, 10, 10, 2).fillAndStroke(style.bg, style.border);
+    doc.restore();
+    doc.font('Helvetica').fontSize(8).fillColor('#374151').text(l.label, lx + 14, legendY + 2);
+    lx += 80;
+  });
+  doc.y = legendY + 18;
+
+  // Group by lab then section
+  const byLab = assets.reduce((acc, a) => {
+    const lab = a.lab || 'Unknown';
+    if (!acc[lab]) acc[lab] = {};
+    const sec = a.section || '—';
+    if (!acc[lab][sec]) acc[lab][sec] = [];
+    acc[lab][sec].push(a);
+    return acc;
+  }, {});
+  const labKeys = Object.keys(byLab).sort();
+
+  // If showing all labs, add a summary before individual labs
+  if (!filters.lab && labKeys.length > 1) {
+    drawSectionHeader(doc, 'All Labs Summary');
+    const labStats = labKeys.map(lab => {
+      const labAssets = Object.values(byLab[lab]).flat();
+      const working = labAssets.filter(a => a.status === 'working').length;
+      const maintenance = labAssets.filter(a => a.status === 'maintenance').length;
+      const faulty = labAssets.filter(a => a.status === 'faulty').length;
+      return { lab, total: labAssets.length, working, maintenance, faulty };
+    });
+
+    // Create summary table
+    const summaryY = doc.y;
+    ensureSpace(doc, 80);
+    
+    // Table headers
+    const headers = ['Lab', 'Total', 'Working', 'Maintenance', 'Faulty'];
+    const colWidths = [80, 80, 80, 100, 80];
+    let x = 40;
+    
+    doc.font('Helvetica-Bold').fontSize(8).fillColor('#111827');
+    headers.forEach((header, i) => {
+      doc.text(header, x, summaryY, { width: colWidths[i] });
+      x += colWidths[i];
+    });
+    
+    // Table rows
+    let y = summaryY + 12;
+    labStats.forEach(stat => {
+      x = 40;
+      const row = [stat.lab, stat.total, stat.working, stat.maintenance, stat.faulty];
+      doc.font('Helvetica').fontSize(8).fillColor('#374151');
+      row.forEach((value, i) => {
+        doc.text(String(value), x, y, { width: colWidths[i] });
+        x += colWidths[i];
+      });
+      y += 10;
+    });
+    
+    doc.y = y + 10;
+    doc.moveDown(0.5);
+  }
+
+  labKeys.forEach((lab) => {
+    drawSectionHeader(doc, lab);
+    const sections = byLab[lab];
+    const sectionKeys = Object.keys(sections).sort();
+
+    // Add lab summary for each lab
+    const labAssets = Object.values(sections).flat();
+    const working = labAssets.filter(a => a.status === 'working').length;
+    const maintenance = labAssets.filter(a => a.status === 'maintenance').length;
+    const faulty = labAssets.filter(a => a.status === 'faulty').length;
+    
+    doc
+      .font('Helvetica')
+      .fontSize(8)
+      .fillColor('#6b7280')
+      .text(`Total: ${labAssets.length} | Working: ${working} | Maintenance: ${maintenance} | Faulty: ${faulty}`, 40, doc.y, { width: 520 });
+    doc.moveDown(0.4);
+
+    sectionKeys.forEach((section) => {
+      const items = sections[section];
+      const byRow = items.reduce((acc, a) => {
+        const r = a.row_num ?? 0;
+        if (!acc[r]) acc[r] = [];
+        acc[r].push(a);
+        return acc;
+      }, {});
+      const rowKeys = Object.keys(byRow).sort((a, b) => Number(a) - Number(b));
+
+      const cellW = 26;
+      const cellH = 22;
+      const gap = 3;
+      const rowH = cellH + gap;
+      const totalH = rowKeys.length * rowH + 22;
+      ensureSpace(doc, totalH + 10);
+
+      const startY = doc.y;
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(9)
+        .fillColor('#7b2434')
+        .text(`Section ${section}`, 40, startY, { width: 520 });
+      const gridY = startY + 14;
+
+      rowKeys.forEach((r, rowIdx) => {
+        const rowItems = byRow[r].slice().sort((a, b) => (a.position || 0) - (b.position || 0));
+        rowItems.forEach((a, i) => {
+          const cx = 40 + i * (cellW + gap);
+          const cy = gridY + rowIdx * rowH;
+          const style = PDF_ASSET_STATUS_FILL[a.status] || PDF_ASSET_STATUS_FILL.working;
+          const dim = filters.assetStatus && a.status !== filters.assetStatus;
+          doc.save();
+          if (dim) doc.fillOpacity(0.3).strokeOpacity(0.3);
+          doc.lineWidth(1).roundedRect(cx, cy, cellW, cellH, 3).fillAndStroke(style.bg, style.border);
+          doc.restore();
+          doc
+            .font('Helvetica-Bold')
+            .fontSize(6.5)
+            .fillColor(dim ? '#9ca3af' : style.text)
+            .text(`P${String(a.position || 0).padStart(2, '0')}`, cx, cy + cellH / 2 - 3, { width: cellW, align: 'center' });
+        });
+      });
+
+      doc.y = gridY + rowKeys.length * rowH + 6;
+    });
+  });
+};
+
+const drawCoverHeader = (doc, { dataType, filters, generatedAt, adminName }) => {
+  // Generate report ID
+  const dateStr = generatedAt.toISOString().split('T')[0];
+  const timeStr = generatedAt.toTimeString().split(' ')[0].replace(/:/g, '-');
+  const reportId = `LT-${dateStr}-${timeStr}-0003`;
+
+  doc.save();
+  doc.roundedRect(40, 30, 520, 110, 10).fill('#9d2235');
+  doc.restore();
+
+  // Main title
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(22)
+    .fillColor('#ffffff')
+    .text('LabTrack Complaint Report', 52, 50, { width: 496 });
+  
+  // Subtitle
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(14)
+    .fillColor('#ffe4e6')
+    .text('Campus Lab Asset Reliability and Service Analytics', 52, 75, { width: 496 });
+
+  // Report metadata
+  doc
+    .font('Helvetica')
+    .fontSize(9)
+    .fillColor('#fecdd3')
+    .text(`Generated: ${generatedAt.toLocaleString()} | Report ID: ${reportId}`, 52, 95, { width: 496 });
+
+  // Applied filters indicator
+  const hasFilters = filters.lab || filters.status || filters.priority || filters.assetStatus || filters.from || filters.to;
+  if (hasFilters) {
+    doc
+      .font('Helvetica')
+      .fontSize(8)
+      .fillColor('#fecdd3')
+      .text('Filters Applied', 52, 108, { width: 496 });
+  } else {
+    doc
+      .font('Helvetica')
+      .fontSize(8)
+      .fillColor('#fecdd3')
+      .text('No filters applied', 52, 108, { width: 496 });
+  }
+
+  doc.y = 155;
+
+  // Scope and range info below header
+  const scope = filters.lab ? `Scope: ${filters.lab}` : 'Scope: All Labs';
+  const range =
+    filters.from || filters.to ? `${filters.from || 'Start'} → ${filters.to || 'Today'}` : 'All-time data';
+  
+  doc
+    .font('Helvetica')
+    .fontSize(10)
+    .fillColor('#374151')
+    .text(`${scope}  ·  ${range}`, 40, doc.y, { width: 520 });
+  doc.moveDown(0.3);
+
+  if (adminName) {
+    doc
+      .font('Helvetica')
+      .fontSize(9)
+      .fillColor('#6b7280')
+      .text(`Generated by: ${adminName}`, 40, doc.y, { width: 520 });
+    doc.moveDown(0.3);
+  }
+};
+
+const renderDetailedReport = (doc, ctx) => {
+  const { dataType, filters, inventoryRows, complaintRows, layoutAssets, generatedAt, adminName } = ctx;
+
+  drawCoverHeader(doc, { dataType, filters, generatedAt, adminName });
+
+  // Table of Contents style overview for All Labs
+  if (!filters.lab && layoutAssets.length > 0) {
+    drawSectionHeader(doc, 'Report Overview');
+    const overviewText = filters.lab 
+      ? `This report provides a comprehensive analysis of ${titleCase(dataType)} for ${filters.lab}.`
+      : `This report provides a comprehensive analysis of ${titleCase(dataType)} across all labs (${layoutAssets.length} total assets).`;
+    
+    doc
+      .font('Helvetica')
+      .fontSize(9.5)
+      .fillColor('#374151')
+      .text(overviewText, 40, doc.y, { width: 520 });
+    doc.moveDown(0.4);
+    
+    doc
+      .font('Helvetica')
+      .fontSize(9)
+      .fillColor('#6b7280')
+      .text('The report includes executive summary, analytics charts, lab layouts, and detailed data listings.', 40, doc.y, { width: 520 });
+    doc.moveDown(0.6);
+  }
+
+  // Applied filters
+  drawSectionHeader(doc, 'Applied Filters');
+  const chips = [
+    ['Data Type', titleCase(dataType)],
+    ['Lab', filters.lab || 'All'],
+    ['Section', filters.section || 'All'],
+    ['Complaint Status', filters.status ? titleCase(filters.status) : 'All'],
+    ['Priority', filters.priority || 'All'],
+    ['Asset Status', filters.assetStatus ? titleCase(filters.assetStatus) : 'All'],
+    ['From', filters.from || '—'],
+    ['To', filters.to || 'Today'],
+    ['Search', filters.search || '—']
+  ];
+  drawFilterChips(doc, chips);
+
+  const wantComplaints = dataType === 'complaints' || dataType === 'both';
+  const wantInventory = dataType === 'inventory' || dataType === 'both';
+
+  // KPI counts
+  const cKpi = { total: complaintRows.length, pending: 0, in_progress: 0, resolved: 0, high: 0 };
+  complaintRows.forEach((r) => {
+    if (cKpi[r.status] !== undefined) cKpi[r.status] += 1;
+    if (r.priority === 'High') cKpi.high += 1;
+  });
+  const iKpi = { total: inventoryRows.length, working: 0, maintenance: 0, faulty: 0 };
+  inventoryRows.forEach((r) => {
+    if (iKpi[r.status] !== undefined) iKpi[r.status] += 1;
+  });
+
+  drawSectionHeader(doc, 'Executive Summary');
+  const kpiItems = [];
+  if (wantComplaints) {
+    kpiItems.push({ label: 'Total Complaints', value: cKpi.total });
+    kpiItems.push({ label: 'Pending', value: cKpi.pending, bg: '#fef3c7', text: '#92400e' });
+    kpiItems.push({ label: 'In Progress', value: cKpi.in_progress, bg: '#dbeafe', text: '#1e40af' });
+    kpiItems.push({ label: 'Resolved', value: cKpi.resolved, bg: '#d1fae5', text: '#065f46' });
+    kpiItems.push({ label: 'High Priority', value: cKpi.high, bg: '#fee2e2', text: '#991b1b' });
+  }
+  if (wantInventory) {
+    kpiItems.push({ label: 'Total Assets', value: iKpi.total });
+    kpiItems.push({ label: 'Working', value: iKpi.working, bg: '#d1fae5', text: '#065f46' });
+    kpiItems.push({ label: 'Maintenance', value: iKpi.maintenance, bg: '#fef3c7', text: '#92400e' });
+    kpiItems.push({ label: 'Faulty', value: iKpi.faulty, bg: '#fee2e2', text: '#991b1b' });
+  }
+  drawKpiGrid(doc, kpiItems);
+
+  // Enhanced narrative
+  const narrativeParts = [];
+  if (wantComplaints) {
+    const resolutionRate = cKpi.total ? Math.round((cKpi.resolved / cKpi.total) * 100) : 0;
+    const scopeText = filters.lab ? `in ${filters.lab}` : 'across all labs';
+    narrativeParts.push(
+      `Period recorded ${cKpi.total} complaint(s) ${scopeText}. High priority: ${cKpi.high}. Resolution rate: ${resolutionRate}%.`
+    );
+  }
+  if (wantInventory) {
+    const uptime = iKpi.total ? Math.round((iKpi.working / iKpi.total) * 100) : 0;
+    const scopeText = filters.lab ? `in ${filters.lab}` : 'across all labs';
+    narrativeParts.push(
+      `Asset fleet ${scopeText}: ${iKpi.working} working, ${iKpi.maintenance} in maintenance, ${iKpi.faulty} faulty (uptime ${uptime}%).`
+    );
+  }
+  if (narrativeParts.length) {
+    doc
+      .font('Helvetica')
+      .fontSize(9.5)
+      .fillColor('#374151')
+      .text(narrativeParts.join(' '), 40, doc.y, { width: 520 });
+    doc.moveDown(0.6);
+  }
+
+  // Complaint analytics
+  if (wantComplaints && complaintRows.length) {
+    drawSectionHeader(doc, 'Campus Lab Asset Reliability and Service Analytics');
+
+    // Risk Score Calculation
+    const backlogRatio = cKpi.total > 0 ? ((cKpi.pending + cKpi.in_progress) / cKpi.total) * 100 : 0;
+    const highPriorityShare = cKpi.total > 0 ? (cKpi.high / cKpi.total) * 100 : 0;
+    const riskScore = Math.round((backlogRatio * 0.4) + (highPriorityShare * 0.6));
+    
+    // 14-day trend analysis
+    const now = new Date();
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const recentComplaints = complaintRows.filter(c => new Date(c.created_at) >= fourteenDaysAgo);
+    const olderComplaints = complaintRows.filter(c => new Date(c.created_at) < fourteenDaysAgo);
+    const trendDirection = recentComplaints.length > olderComplaints.length ? 'increasing' : 
+                         recentComplaints.length < olderComplaints.length ? 'decreasing' : 'stable';
+    const trendWindow = `${fourteenDaysAgo.toISOString().split('T')[0]} to ${now.toISOString().split('T')[0]}`;
+
+    // Executive Summary Box
+    ensureSpace(doc, 120);
+    const summaryY = doc.y;
+    doc.save();
+    doc.roundedRect(40, summaryY, 520, 110, 8).fillAndStroke('#f8fafc', '#e2e8f0');
+    doc.restore();
+    
+    doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text('Executive Summary', 52, summaryY + 12);
+    
+    const summaryLines = [
+      `• Report scope contains ${cKpi.total} complaint record${cKpi.total === 1 ? '' : 's'}.`,
+      `• Backlog ratio (pending + in-progress): ${backlogRatio.toFixed(1)}%.`,
+      `• High-priority share: ${highPriorityShare.toFixed(1)}%.`,
+      `• 14-day complaint trend is ${trendDirection} (${recentComplaints.length} recent vs ${olderComplaints.length} previous).`,
+      `• ${cKpi.resolved > 0 ? `Resolution-time benchmark: ${Math.round(cKpi.total / cKpi.resolved)} days average.` : 'No resolved complaints, so resolution-time benchmark is unavailable.'}`,
+      `• Risk Score: ${riskScore}/100 (derived from backlog, severity mix, and concentration hotspots).`
+    ];
+    
+    let lineY = summaryY + 30;
+    doc.font('Helvetica').fontSize(9).fillColor('#374151');
+    summaryLines.forEach(line => {
+      doc.text(line, 52, lineY, { width: 480 });
+      lineY += 12;
+    });
+    doc.y = summaryY + 120;
+
+    // Status and Priority Distribution
+    drawSectionHeader(doc, 'Status and Priority Distribution');
+    
+    const statusData = [
+      { name: 'Pending', value: cKpi.pending, percentage: cKpi.total > 0 ? (cKpi.pending / cKpi.total * 100).toFixed(1) : '0.0' },
+      { name: 'In Progress', value: cKpi.in_progress, percentage: cKpi.total > 0 ? (cKpi.in_progress / cKpi.total * 100).toFixed(1) : '0.0' },
+      { name: 'Resolved', value: cKpi.resolved, percentage: cKpi.total > 0 ? (cKpi.resolved / cKpi.total * 100).toFixed(1) : '0.0' }
+    ];
+    
+    const priorityData = ['High', 'Medium', 'Low'].map(p => ({
+      name: p,
+      value: complaintRows.filter(r => r.priority === p).length,
+      percentage: cKpi.total > 0 ? (complaintRows.filter(r => r.priority === p).length / cKpi.total * 100).toFixed(1) : '0.0'
+    }));
+
+    // Status distribution with percentages
+    ensureSpace(doc, 80);
+    let y = doc.y;
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#374151').text('Status Distribution', 40, y);
+    y += 15;
+    statusData.forEach(item => {
+      doc.font('Helvetica').fontSize(9).fillColor('#374151').text(`• ${item.name}: ${item.value} (${item.percentage}%)`, 52, y);
+      y += 10;
+    });
+    
+    y += 10;
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#374151').text('Priority Distribution', 40, y);
+    y += 15;
+    priorityData.forEach(item => {
+      doc.font('Helvetica').fontSize(9).fillColor('#374151').text(`• ${item.name} Priority: ${item.value} (${item.percentage}%)`, 52, y);
+      y += 10;
+    });
+    doc.y = y + 10;
+
+    // 14-Day Complaint Trend
+    drawSectionHeader(doc, '14-Day Complaint Trend');
+    doc.font('Helvetica').fontSize(9).fillColor('#374151').text(
+      `Direction: ${trendDirection.charAt(0).toUpperCase() + trendDirection.slice(1)} for the window ${trendWindow}`,
+      40, doc.y, { width: 520 }
+    );
+    doc.moveDown(0.4);
+
+    // Trend visualization (simple bar chart)
+    const trendData = [
+      { name: 'Previous 14 days', value: olderComplaints.length },
+      { name: 'Recent 14 days', value: recentComplaints.length }
+    ];
+    drawBarChart(doc, trendData, { title: 'Complaint Volume Comparison', color: '#3b82f6', height: 100 });
+
+    // Hotspots and Concentration
+    drawSectionHeader(doc, 'Hotspots and Concentration');
+    
+    // Top Labs
+    const labMap = {};
+    const sectionMap = {};
+    const systemMap = {};
+    
+    complaintRows.forEach((r) => {
+      const lab = r.asset_lab || 'Unknown';
+      labMap[lab] = (labMap[lab] || 0) + 1;
+      
+      const sec = r.asset_section || '—';
+      const sectionKey = `${lab}/${sec}`;
+      sectionMap[sectionKey] = (sectionMap[sectionKey] || 0) + 1;
+      
+      const system = r.asset_system_id || 'Unknown';
+      systemMap[system] = (systemMap[system] || 0) + 1;
+    });
+    
+    const topLabs = Object.entries(labMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+    
+    const topSections = Object.entries(sectionMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+    
+    const topSystems = Object.entries(systemMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+
+    // Display hotspots
+    ensureSpace(doc, 120);
+    y = doc.y;
+    
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#374151').text('Top Labs', 40, y);
+    y += 12;
+    topLabs.forEach((item, i) => {
+      doc.font('Helvetica').fontSize(9).fillColor('#374151').text(`${i + 1}. ${item.name} (${item.value})`, 52, y);
+      y += 10;
+    });
+    
+    y += 10;
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#374151').text('Top Sections', 40, y);
+    y += 12;
+    topSections.forEach((item, i) => {
+      doc.font('Helvetica').fontSize(9).fillColor('#374151').text(`${i + 1}. ${item.name} (${item.value})`, 52, y);
+      y += 10;
+    });
+    
+    y += 10;
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#374151').text('Most Frequently Reported Systems', 40, y);
+    y += 12;
+    topSystems.forEach((item, i) => {
+      doc.font('Helvetica').fontSize(9).fillColor('#374151').text(`${i + 1}. ${item.name} (${item.value})`, 52, y);
+      y += 10;
+    });
+    
+    doc.y = y + 10;
+
+    // Additional Analytics Charts
+    drawSectionHeader(doc, 'Detailed Analytics');
+
+    // By Lab chart
+    drawBarChart(doc, topLabs, { title: 'Complaints by Lab', color: '#9d2235', height: 130 });
+
+    // Status stacked
+    drawStackedBar(
+      doc,
+      [
+        { name: 'pending', value: cKpi.pending, color: PDF_STATUS_COLORS.pending },
+        { name: 'in_progress', value: cKpi.in_progress, color: PDF_STATUS_COLORS.in_progress },
+        { name: 'resolved', value: cKpi.resolved, color: PDF_STATUS_COLORS.resolved }
+      ],
+      { title: 'Status Distribution' }
+    );
+
+    // Priority bars
+    const byPriority = ['High', 'Medium', 'Low'].map((p) => ({
+      name: p,
+      value: complaintRows.filter((r) => r.priority === p).length,
+      color: PDF_PRIORITY_COLORS[p]
+    }));
+    drawBarChart(doc, byPriority, { title: 'Priority Distribution', height: 130 });
+  }
+
+  // Asset health analytics
+  if (wantInventory && inventoryRows.length) {
+    drawSectionHeader(doc, 'Asset Health Analytics');
+    drawStackedBar(
+      doc,
+      [
+        { name: 'working', value: iKpi.working, color: PDF_ASSET_STATUS_FILL.working.border },
+        { name: 'maintenance', value: iKpi.maintenance, color: PDF_ASSET_STATUS_FILL.maintenance.border },
+        { name: 'faulty', value: iKpi.faulty, color: PDF_ASSET_STATUS_FILL.faulty.border }
+      ],
+      { title: 'Asset Status Distribution' }
+    );
+
+    // Assets by lab
+    const labMap = {};
+    inventoryRows.forEach((r) => {
+      const lab = r.lab || 'Unknown';
+      labMap[lab] = (labMap[lab] || 0) + 1;
+    });
+    const byLab = Object.entries(labMap).map(([name, value]) => ({ name, value }));
+    if (byLab.length) {
+      drawBarChart(doc, byLab, { title: 'Assets by Lab', color: '#3b82f6', height: 130 });
+    }
+  }
+
+  // Lab layout visualization
+  doc.addPage();
+  drawLabLayout(doc, layoutAssets, filters);
+
+  // Detailed data sections
+  if (wantInventory) {
+    doc.addPage();
+    writeInventoryPdfSection(doc, inventoryRows, filters);
+  }
+  if (wantComplaints) {
+    doc.addPage();
+    writeComplaintsPdfSection(doc, complaintRows, filters);
+  }
+};
+
 router.use(authenticate, authorize('admin'));
 
 router.get('/dashboard', async (_req, res, next) => {
@@ -901,58 +1624,71 @@ router.get('/export', async (req, res, next) => {
     }
 
     if (format === 'pdf') {
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${fileBase}.pdf"`);
+      // Fetch layout assets for lab diagram when a single lab is selected
+      let layoutAssets = [];
+      if (filters.lab) {
+        const { data: labAssetRows, error: layoutErr } = await supabase
+          .from('assets')
+          .select('id, system_id, lab, section, row_num, position, status')
+          .eq('lab', filters.lab)
+          .order('section', { ascending: true })
+          .order('row_num', { ascending: true })
+          .order('position', { ascending: true });
+        if (layoutErr) throw layoutErr;
+        layoutAssets = labAssetRows || [];
+      } else {
+        // When no lab selected, fetch assets for all labs to show a combined layout
+        const { data: allAssetRows, error: allErr } = await supabase
+          .from('assets')
+          .select('id, system_id, lab, section, row_num, position, status')
+          .order('lab', { ascending: true })
+          .order('section', { ascending: true })
+          .order('row_num', { ascending: true })
+          .order('position', { ascending: true });
+        if (allErr) throw allErr;
+        layoutAssets = allAssetRows || [];
+      }
 
       const doc = new PDFDocument({ margin: 40, size: 'A4', bufferPages: true });
-      doc.pipe(res);
+      const chunks = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('error', (err) => next(err));
+      doc.on('end', () => {
+        const pdfBuffer = Buffer.concat(chunks);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileBase}-report.pdf"`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        res.end(pdfBuffer);
+      });
 
-      doc.save();
-      doc.roundedRect(40, 30, 520, 76, 10).fill('#9d2235');
-      doc.restore();
+      renderDetailedReport(doc, {
+        dataType,
+        filters,
+        inventoryRows,
+        complaintRows,
+        layoutAssets,
+        generatedAt: new Date(),
+        adminName: req.user?.name || req.user?.email || ''
+      });
 
-      doc.font('Helvetica-Bold').fontSize(21).fillColor('#ffffff').text('LabTrack Admin Export Report', 52, 50, { width: 500 });
-      doc
-        .font('Helvetica')
-        .fontSize(9.5)
-        .fillColor('#ffe4e6')
-        .text(
-          `Dataset: ${dataType.toUpperCase()}  |  Generated: ${new Date().toLocaleString()}  |  Format: PDF`,
-          52,
-          79,
-          { width: 500 }
-        );
-
-      doc.y = 122;
-      doc.font('Helvetica-Bold').fontSize(11).fillColor('#111827').text('Export Overview', 40, doc.y, { width: 520 });
-      writeLabelValue(doc, 'Inventory Records', inventoryRows.length);
-      writeLabelValue(doc, 'Complaint Records', complaintRows.length);
-      writeLabelValue(doc, 'Selected Data Type', dataType);
-      writeLabelValue(doc, 'Applied Search', filters.search || 'None');
-      doc.moveDown(0.4);
-
-      if (dataType === 'inventory' || dataType === 'both') {
-        writeInventoryPdfSection(doc, inventoryRows, filters);
-      }
-
-      if (dataType === 'both') {
-        ensureSpace(doc, 32);
-        doc.moveDown(0.3);
-      }
-
-      if (dataType === 'complaints' || dataType === 'both') {
-        writeComplaintsPdfSection(doc, complaintRows, filters);
-      }
-
-      const pageCount = doc.bufferedPageRange().count;
-      for (let i = 0; i < pageCount; i += 1) {
+      // Footer page numbers across all buffered pages
+      const range = doc.bufferedPageRange();
+      for (let i = range.start; i < range.start + range.count; i += 1) {
         doc.switchToPage(i);
         doc
           .font('Helvetica')
           .fontSize(8)
           .fillColor('#9ca3af')
-          .text(`Page ${i + 1} of ${pageCount}`, 40, doc.page.height - 24, {
+          .text(`Page ${i + 1} of ${range.count}`, 40, doc.page.height - 24, {
             align: 'right',
+            width: 520
+          });
+        doc
+          .font('Helvetica')
+          .fontSize(8)
+          .fillColor('#9ca3af')
+          .text('LabTrack · Computing Lab Operations Report', 40, doc.page.height - 24, {
+            align: 'left',
             width: 520
           });
       }
