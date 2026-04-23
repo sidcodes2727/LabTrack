@@ -1107,7 +1107,10 @@ const renderDetailedReport = (doc, ctx) => {
 
     // Risk Score Calculation
     const backlogRatio = cKpi.total > 0 ? ((cKpi.pending + cKpi.in_progress) / cKpi.total) * 100 : 0;
-    const highPriorityShare = cKpi.total > 0 ? (cKpi.high / cKpi.total) * 100 : 0;
+    const unresolvedHighPriority = complaintRows.filter(r => 
+      r.priority === 'High' && (r.status === 'pending' || r.status === 'in_progress')
+    ).length;
+    const highPriorityShare = cKpi.total > 0 ? (unresolvedHighPriority / cKpi.total) * 100 : 0;
     const riskScore = Math.round((backlogRatio * 0.4) + (highPriorityShare * 0.6));
     
     // 14-day trend analysis
