@@ -590,32 +590,43 @@ export default function StudentPage({ session, onLogout }) {
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto p-5">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-semibold">Lab Layout - {selectedLab}</h2>
-                      <p className="text-xs text-gray-500">{selectedLabMeta?.total || 0} systems, {selectedLabMeta?.faulty || 0} faulty</p>
-                    </div>
-                    <label className="relative block">
-                      <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search System ID"
-                        className="w-56 rounded-lg border border-[#9d2235]/15 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-accent/50"
-                      />
-                    </label>
-                  </div>
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.div
+                      key={selectedLab}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.25, ease: 'easeOut' }}
+                      className="space-y-3"
+                    >
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <h2 className="text-lg font-semibold">Lab Layout - {selectedLab}</h2>
+                          <p className="text-xs text-gray-500">{selectedLabMeta?.total || 0} systems, {selectedLabMeta?.faulty || 0} faulty</p>
+                        </div>
+                        <label className="relative block">
+                          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search System ID"
+                            className="w-56 rounded-lg border border-[#9d2235]/15 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-accent/50"
+                          />
+                        </label>
+                      </div>
 
-                  <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-gray-600">
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600" /> Working</span>
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-600" /> Faulty</span>
-                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" /> Maintenance</span>
-                    <span className="ml-auto text-[11px] text-gray-500">Click any PC node to inspect</span>
-                  </div>
+                      <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-gray-600">
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600" /> Working</span>
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-600" /> Faulty</span>
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" /> Maintenance</span>
+                        <span className="ml-auto text-[11px] text-gray-500">Click any PC node to inspect</span>
+                      </div>
 
-                  <div className="-ml-2">
-                    <LabVisualizer assets={assets} onSelect={loadDetail} selectedId={selectedAsset?.id || selectedAsset?.system_id} />
-                  </div>
+                      <div className="-ml-2">
+                        <LabVisualizer assets={assets} onSelect={loadDetail} selectedId={selectedAsset?.id || selectedAsset?.system_id} />
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
               </motion.section>
 
