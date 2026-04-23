@@ -44,7 +44,7 @@ LabTrack solves the problem of scattered, untracked lab asset management by crea
 
 ---
 
-## Architecture
+
 
 ### System Diagram
 
