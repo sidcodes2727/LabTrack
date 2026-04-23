@@ -45,8 +45,9 @@ export default function LoginPage({ onAuth }) {
     setLoading(true);
     try {
       if (mode === 'signup') {
-        await api.post('/auth/signup', form);
-        toast.success('Signup successful. Please login.');
+        const signupData = { ...form, role: 'student' };
+        await api.post('/auth/signup', signupData);
+        toast.success('Student account created successfully. Please login.');
         setMode('login');
       } else {
         const { data } = await api.post('/auth/login', {
@@ -183,38 +184,51 @@ export default function LoginPage({ onAuth }) {
             <form onSubmit={handleSubmit} className="space-y-4 p-8 md:p-9">
               <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-accent">{mode === 'login' ? 'Sign In' : 'Sign Up'}</p>
               <h2 className="text-4xl font-semibold leading-none text-ink">{mode === 'login' ? 'Welcome Back.' : 'Create Account.'}</h2>
-              <p className="text-sm text-gray-500">Access your lab dashboard or submit a complaint.</p>
+              <p className="text-sm text-gray-500">
+                {mode === 'login' 
+                  ? 'Access your lab dashboard or submit a complaint.' 
+                  : 'Create a student account to access lab services.'}
+              </p>
 
-              <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1.5">
-                <button
-                  type="button"
-                  onClick={() => setForm((prev) => ({ ...prev, role: 'student' }))}
-                  className="relative rounded-lg px-3 py-2 text-sm font-medium transition-colors"
-                >
-                  {form.role === 'student' && (
-                    <motion.span
-                      layoutId="login-role-slider"
-                      className="absolute inset-0 rounded-lg bg-white shadow-sm"
-                      transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.7 }}
-                    />
-                  )}
-                  <span className={`relative z-10 ${form.role === 'student' ? 'text-gray-900' : 'text-gray-500'}`}>Student</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForm((prev) => ({ ...prev, role: 'admin' }))}
-                  className="relative rounded-lg px-3 py-2 text-sm font-medium transition-colors"
-                >
-                  {form.role === 'admin' && (
-                    <motion.span
-                      layoutId="login-role-slider"
-                      className="absolute inset-0 rounded-lg bg-white shadow-sm"
-                      transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.7 }}
-                    />
-                  )}
-                  <span className={`relative z-10 ${form.role === 'admin' ? 'text-gray-900' : 'text-gray-500'}`}>Admin</span>
-                </button>
-              </div>
+              {mode === 'login' ? (
+                <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, role: 'student' }))}
+                    className="relative rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                  >
+                    {form.role === 'student' && (
+                      <motion.span
+                        layoutId="login-role-slider"
+                        className="absolute inset-0 rounded-lg bg-white shadow-sm"
+                        transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.7 }}
+                      />
+                    )}
+                    <span className={`relative z-10 ${form.role === 'student' ? 'text-gray-900' : 'text-gray-500'}`}>Student</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, role: 'admin' }))}
+                    className="relative rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                  >
+                    {form.role === 'admin' && (
+                      <motion.span
+                        layoutId="login-role-slider"
+                        className="absolute inset-0 rounded-lg bg-white shadow-sm"
+                        transition={{ type: 'spring', stiffness: 450, damping: 34, mass: 0.7 }}
+                      />
+                    )}
+                    <span className={`relative z-10 ${form.role === 'admin' ? 'text-gray-900' : 'text-gray-500'}`}>Admin</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-2">
+                  <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-sm font-medium">
+                    <ShieldCheck size={14} />
+                    Student Account
+                  </span>
+                </div>
+              )}
 
               {mode === 'signup' && (
                 <label className="block">
